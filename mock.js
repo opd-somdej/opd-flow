@@ -42,7 +42,7 @@ var MOCK = (function () {
           { id: 'a2', dim: 'clinic', val: '', metric: 'last60', thr: 60, on: 1, note: 'คลินิกใดมี ≥60 รายใน 1 ชม.' }
         ],
         tv: { key: 'tv-demo-150', rotate: 20, title: 'สถานการณ์ผู้ป่วยนอกวันนี้' },
-        api: { url: 'https://www.thaimed.net/api/new/', report: '(รอไอทีตั้งชื่อ)', mode: 'mock', map: { date: 'yyyymmdd', time: 'hhmm', pt: 'pttype', clinic: 'clinic', visit: 'total_visit', appoint: 'total_appoint', walkin: 'total_walkin' } }
+        api: { url: 'https://www.thaimed.net/api/new/', report: 'get_visit', style: 'new', mode: 'mock', map: {} }
       },
       log: [], audit: [], bf: null, ver: 1
     };
