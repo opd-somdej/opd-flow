@@ -30,8 +30,8 @@ var MOCK = (function () {
       groupings: [G],
       holidays: HOL,
       users: [
-        { emp: '5371822', name: 'พว.ณภัชดา ศิริมาสกุล', role: 'admin', scope: [], active: 1, note: 'ผู้ตรวจการพยาบาล งานผู้ป่วยนอก 1' },
-        { emp: '5660101', name: 'หัวหน้าหอ (ตัวอย่าง)', role: 'viewer', scope: [{ dim: 'g:nurse', val: 'OPD1' }], active: 1, note: 'เห็นเฉพาะงานผู้ป่วยนอก 1' }
+        { emp: '1000001', name: 'ผู้ดูแลระบบ (ตัวอย่าง)', role: 'admin', scope: [], active: 1, note: 'บัญชีตัวอย่างในโหมดสาธิต' },
+        { emp: '1000002', name: 'หัวหน้าหอ (ตัวอย่าง)', role: 'viewer', scope: [{ dim: 'g:nurse', val: 'OPD1' }], active: 1, note: 'เห็นเฉพาะงานผู้ป่วยนอก 1' }
       ],
       settings: {
         orgName: 'โรงพยาบาลสมเด็จพระบรมราชเทวี ณ ศรีราชา',
@@ -44,10 +44,10 @@ var MOCK = (function () {
         tv: { key: 'tv-demo-150', rotate: 20, title: 'สถานการณ์ผู้ป่วยนอกวันนี้' },
         api: { url: 'https://www.thaimed.net/api/new/', report: 'get_visit', style: 'new', mode: 'mock', map: {} }
       },
-      log: [], audit: [], bf: null, ver: 1
+      log: [], audit: [], bf: null, ver: 2
     };
   }
-  function load() { var s = null; try { s = JSON.parse(localStorage.getItem('opd:demoState') || 'null'); } catch (e) { } if (!s || s.ver !== 1) s = defaults(); return s; }
+  function load() { var s = null; try { s = JSON.parse(localStorage.getItem('opd:demoState') || 'null'); } catch (e) { } if (!s || s.ver !== 2) s = defaults(); return s; }
   function save() { try { localStorage.setItem('opd:demoState', JSON.stringify(ST)); } catch (e) { } }
   function seedRows() { return ST.clinics.map(function (c) { return [c.code, c.name, c.type, c.bld, c.floor, c.grp, c.show]; }); }
 
@@ -101,7 +101,7 @@ var MOCK = (function () {
   var A = {
     login: function (p) {
       var u = ST.users.filter(function (x) { return x.emp === String(p.emp) && x.active; })[0];
-      if (!u) throw new Error('รหัส ' + p.emp + ' ยังไม่ได้รับสิทธิ์เข้าใช้ระบบ กรุณาติดต่อผู้ดูแลระบบ (โหมดสาธิต: ใช้ 5371822 หรือ 5660101)');
+      if (!u) throw new Error('รหัส ' + p.emp + ' ยังไม่ได้รับสิทธิ์เข้าใช้ระบบ กรุณาติดต่อผู้ดูแลระบบ (โหมดสาธิต: กดปุ่มบัญชีตัวอย่าง)');
       if (!p.pass) throw new Error('กรุณากรอกรหัสผ่าน');
       var tk = 'demo-' + U.uid(); sess[tk] = u;
       try { sessionStorage.setItem('opd:demoSess', JSON.stringify({ tk: tk, emp: u.emp })); } catch (e) { }

@@ -272,7 +272,9 @@ function route() {
   U.$('#topTools').innerHTML = '';
   UI.closePop();
   if (window.CH) CH.disposeAll();
-  var root = U.$('#page'); root.innerHTML = ''; root.className = 'pg-' + h; root.scrollTop = 0; window.scrollTo(0, 0);
+  // สร้างกล่องหน้าใหม่ทุกครั้ง: งานโหลดของหน้าเก่าที่ตอบช้าจะวาดลงกล่องเดิมที่หลุดจากจอแล้ว ไม่ทับหน้าใหม่
+  var old = U.$('#page'), root = document.createElement('main'); root.id = 'page'; root.tabIndex = -1; root.className = 'pg-' + h;
+  old.parentNode.replaceChild(root, old); window.scrollTo(0, 0);
   try { PAGE_FN[h](root); } catch (e) { console.error(e); root.innerHTML = '<div class="empty"><b>เปิดหน้านี้ไม่สำเร็จ</b><p>' + U.esc(e.message) + '</p></div>'; }
   STORE.set('u:' + S.me.emp + ':page', h);
 }
@@ -330,11 +332,11 @@ function loginScreen(msg) {
     '<div class="la-text"><h2>เห็นการไหลของผู้ป่วยนอก ทั้งโรงพยาบาล ในจอเดียว</h2><p>ยอดสดจากระบบ HIS ทุกคลินิก ทุกชั้น ทุกตึก — ช่วงเวลาที่แน่น แนวโน้มที่กำลังมา และอัตรากำลังที่ควรมี</p></div></section>' +
     '<section class="login-box"><img src="logo-hospital.png" alt="" width="56" height="56">' +
     '<h1>OPD Flow</h1><p class="muted">ระบบติดตามยอดผู้ป่วยนอกแบบเรียลไทม์<br>โรงพยาบาลสมเด็จพระบรมราชเทวี ณ ศรีราชา</p>' +
-    '<form id="lf" autocomplete="on"><label>รหัสเจ้าหน้าที่ 7 หลัก<input id="lu" inputmode="numeric" maxlength="7" autocomplete="username" required placeholder="เช่น 5371822"></label>' +
+    '<form id="lf" autocomplete="on"><label>รหัสเจ้าหน้าที่ 7 หลัก<input id="lu" inputmode="numeric" maxlength="7" autocomplete="username" required placeholder="ตัวเลข 7 หลัก"></label>' +
     '<label>รหัสผ่านระบบ HIS<input id="lp" type="password" autocomplete="current-password" required></label>' +
     '<p class="err" id="lerr" role="alert">' + (msg ? U.esc(msg) : '') + '</p>' +
     '<button class="btn primary big" id="lb">เข้าสู่ระบบ</button></form>' +
-    (DEMO ? '<div class="demo-login"><p><b>โหมดสาธิต (ข้อมูลจำลอง)</b> ใช้รหัสใดก็ได้ในรายชื่อนี้ รหัสผ่านอะไรก็ได้</p><button class="btn" data-u="5371822">ผู้ดูแลระบบ · 5371822</button><button class="btn" data-u="5660101">หัวหน้าหอ (เห็นเฉพาะกลุ่ม) · 5660101</button></div>' : '') +
+    (DEMO ? '<div class="demo-login"><p><b>โหมดสาธิต (ข้อมูลจำลอง)</b> กดเลือกบัญชีตัวอย่างเพื่อเข้าดู</p><button class="btn" data-u="1000001">ผู้ดูแลระบบ (ตัวอย่าง)</button><button class="btn" data-u="1000002">หัวหน้าหอ เห็นเฉพาะเขต (ตัวอย่าง)</button></div>' : '') +
     '<p class="muted xs">ใช้รหัสผ่านเดียวกับระบบ HIS · ผู้ที่ได้รับสิทธิ์จากผู้ดูแลระบบเท่านั้นที่เข้าใช้ได้</p></section></div>';
   var f = U.$('#lf');
   f.onsubmit = function (e) {

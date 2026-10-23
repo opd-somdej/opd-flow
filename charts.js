@@ -35,6 +35,7 @@ var CH = (function () {
 
   /** เส้นแนวโน้ม: x = ป้ายแกน, series [{name, data, color, area, dash, z}], band {lo, hi, name} */
   function line(el, o) {
+    if (!window.echarts) return make(el, {});
     var t = T(), series = [];
     if (o.band) {
       series.push({ name: o.band.name + '_lo', type: 'line', data: o.band.lo, stack: 'band', symbol: 'none', lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false } });
