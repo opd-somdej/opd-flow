@@ -7,7 +7,7 @@ PAGE_FN.explore = function (root) {
   var tools = U.$('#topTools'), dim, split = STORE.get('u:' + S.me.emp + ':exSplit', false);
   FUI.bar(tools, function () { load(); });
   var pc = PER.control(tools, function () { load(); });
-  dim = FUI.dimSelect(tools, 'exDim', 'grp', function (d) { dim = d; load(); });
+  dim = FUI.dimSelect(tools, 'exDim2', 'unit', function (d) { dim = d; load(); });
   var tables = {};
   EXP.toolbar(tools, { title: 'วิเคราะห์ยอดผู้ป่วยนอก', xlsx: function () { EXP.xlsx('วิเคราะห์ยอดผู้ป่วย ' + pc.get().label, Object.keys(tables).map(function (k) { return { name: k, cols: tables[k].cols, rows: tables[k].rows }; })); } });
   load();
@@ -16,14 +16,14 @@ PAGE_FN.explore = function (root) {
     var p = pc.get(), r = PER.clip(p), prev = PER.clip(PER.shift(p, -1)), ly = PER.lastYear(p);
     var lyc = { from: ly.from < D.firstDate() ? D.firstDate() : ly.from, to: ly.to };
     if (r.from > r.to) { root.innerHTML = '<div class="empty"><b>ช่วงนี้ยังไม่มีข้อมูล</b><p>ข้อมูลเริ่ม ' + U.thDate(D.firstDate(), { full: true }) + '</p></div>'; return; }
-    root.innerHTML = '<div class="loading-block"><div class="ld-rib"></div><p>กำลังโหลดข้อมูล ' + U.esc(p.label) + '…</p></div>';
+    UI.loading(root, 'กำลังโหลดข้อมูล ' + p.label + '…');
     var hrs = !!D.filt().hours;
     Promise.all([D.ensure(r.from, r.to, hrs), prev.from <= prev.to ? D.ensure(prev.from, prev.to, hrs) : null, lyc.from <= lyc.to ? D.ensure(lyc.from, lyc.to, hrs) : null]).then(function () { draw(p, r, prev, lyc); })
-      .catch(function (e) { root.innerHTML = '<div class="empty"><b>โหลดข้อมูลไม่สำเร็จ</b><p>' + U.esc(e.message) + '</p></div>'; });
+      .catch(function (e) { UI.doneLoading(root); root.innerHTML = '<div class="empty"><b>โหลดข้อมูลไม่สำเร็จ</b><p>' + U.esc(e.message) + '</p></div>'; });
   }
 
   function draw(p, r, prev, ly) {
-    CH.disposeAll(); tables = {};
+    CH.disposeAll(); tables = {}; UI.doneLoading(root);
     var R = D.agg(r.from, r.to), P = prev.from <= prev.to ? D.agg(prev.from, prev.to) : null, Y = ly.from <= ly.to ? D.agg(ly.from, ly.to) : null;
     var partial = p.to > r.to;
     // เทียบแบบเท่ากัน: ถ้าช่วงนี้ยังไม่จบ เทียบช่วงก่อน/ปีก่อนเฉพาะจำนวนวันเท่ากัน
@@ -33,11 +33,11 @@ PAGE_FN.explore = function (root) {
     var wdAvg = function (X) { var s = 0, n = 0; Object.keys(X.byDay).forEach(function (d) { if (X.byDay[d][3] === 'W') { s += X.byDay[d][0]; n++; } }); return n ? s / n : null; };
     var offAvg = function (X) { var s = 0, n = 0; Object.keys(X.byDay).forEach(function (d) { if (X.byDay[d][3] !== 'W') { s += X.byDay[d][0]; n++; } }); return n ? s / n : null; };
     var w0 = wdAvg(R);
-    root.innerHTML =
-      '<p class="ctx">' + U.esc(p.label) + (partial ? ' · ถึง ' + U.thDate(r.to, { full: true }) + ' (ยังไม่ครบช่วง — เทียบกับจำนวนวันเท่ากัน)' : '') + (R.approx ? ' · <span class="tag">นัด/walk-in เป็นค่าประมาณเมื่อกรองสิทธิ</span>' : '') + '</p>' +
+    root.innerHTML = UNMAPPED.banner() +
+      '<p class="ctx"><b>' + U.esc(p.label) + '</b>' + (D.describe().length ? ' · ' + U.esc(D.describe().join(' · ')) : '') + (R.lastAt ? ' · ดึงจาก HIS ล่าสุด ' + U.esc(R.lastAt.slice(0, 16)) + ' น.' : '') + (partial ? ' · ถึง ' + U.thDate(r.to, { full: true }) + ' (ยังไม่ครบช่วง — เทียบกับจำนวนวันเท่ากัน)' : '') + (R.approx ? ' · <span class="tag">สิทธิ/นัด-walk-in บางส่วนเป็นค่าประมาณตามสัดส่วนของคลินิก</span>' : '') + '</p>' +
       '<div class="kpis">' +
       kpi({ label: 'ผู้ป่วยนอกรวม', value: R.v, unit: 'ครั้ง', delta: P && P.v ? R.v / P.v - 1 : null, deltaLabel: 'เทียบช่วงก่อน', help: 'visits' }) +
-      kpi({ label: 'เฉลี่ยวันทำการ', value: w0 == null ? '–' : Math.round(w0), unit: w0 == null ? '' : 'ราย/วัน', delta: Y && wdAvg(Y) && w0 ? w0 / wdAvg(Y) - 1 : null, deltaLabel: 'เทียบปีก่อน', sub: R.nd.W + ' วันทำการ', help: 'wdavg' }) +
+      kpi({ label: R.days === 1 ? 'วันนี้เป็น' : 'เฉลี่ยวันทำการ', value: R.days === 1 ? D.DT[D.dayType(r.from)] : (w0 == null ? '–' : Math.round(w0)), unit: R.days === 1 || w0 == null ? '' : 'ราย/วัน', delta: Y && wdAvg(Y) && w0 ? w0 / wdAvg(Y) - 1 : null, deltaLabel: 'เทียบปีก่อน', sub: R.nd.W + ' วันทำการ', help: 'wdavg' }) +
       kpi({ label: 'เฉลี่ยวันหยุด', value: offAvg(R) == null ? '–' : Math.round(offAvg(R)), unit: offAvg(R) == null ? '' : 'ราย/วัน', sub: (R.nd.S + R.nd.H) + ' วัน (เสาร์–อาทิตย์/นักขัตฤกษ์)', help: 'offavg' }) +
       kpi({ label: 'มาตามนัด : walk-in', value: R.v ? U.share(R.a / R.v, 0) + ' : ' + U.share(R.w / R.v, 0) : '–', sub: 'walk-in ' + U.fmt(R.w) + ' ราย', help: 'appoint' }) +
       kpi({ label: 'เทียบช่วงเดียวกันปีก่อน', value: Y && Y.v ? U.pct(R.v / Y.v - 1) : '–', sub: Y && Y.v ? 'ปีก่อน ' + U.fmt(Y.v) + ' ราย' : 'ไม่มีข้อมูลปีก่อน', help: 'yoy' }) +
@@ -92,12 +92,12 @@ PAGE_FN.explore = function (root) {
     c3.setTable(pc2, ptRows); tables['สิทธิการรักษา'] = { cols: pc2, rows: ptRows };
 
     /* 4) หลายระดับ */
-    var paths = treePaths(), pathSel = STORE.get('u:' + S.me.emp + ':exPath', 0); if (!paths[pathSel]) pathSel = 0;
+    var paths = treePaths(), pathSel = STORE.get('u:' + S.me.emp + ':exPath2', 0); if (!paths[pathSel]) pathSel = 0;
     var sel = U.el('<select class="sm-sel" aria-label="ลำดับชั้น">' + paths.map(function (pp, i) { return '<option value="' + i + '"' + (i === pathSel ? ' selected' : '') + '>' + pp.map(function (d) { return D.DIM[d].short; }).join(' › ') + '</option>'; }).join('') + '</select>');
-    var c4 = U.el('<section class="card span3"><header class="ch"><div><h2>ภาพรวม → รายย่อย' + UI.info('tree') + '</h2><p class="sub">กดแถวเพื่อเปิดระดับถัดไป · เทียบช่วงก่อนแบบจำนวนวันเท่ากัน</p></div><div class="ctools"></div></header><div class="cbody"><div class="tree" id="tree"></div></div></section>');
+    var c4 = U.el('<section class="card span3"><header class="ch"><div><h2>ภาพรวม → รายย่อย' + UI.info('tree') + '</h2><p class="sub">กดแถวเพื่อเปิดระดับถัดไป · เทียบช่วงก่อนแบบจำนวนวันเท่ากัน · ▲ เพิ่ม ▼ ลด</p></div><div class="ctools"></div></header><div class="cbody"><div class="tree" id="tree"></div></div></section>');
     U.$('.ctools', c4).appendChild(sel);
     U.$('#e4', root).appendChild(c4);
-    sel.onchange = function () { STORE.set('u:' + S.me.emp + ':exPath', +sel.value); paintTree(paths[+sel.value]); };
+    sel.onchange = function () { STORE.set('u:' + S.me.emp + ':exPath2', +sel.value); paintTree(paths[+sel.value]); };
     function paintTree(path) {
       var leaf = {}; // key path → {v,a,w,p}
       for (var ci = 0; ci < D.nC; ci++) {
@@ -112,8 +112,8 @@ PAGE_FN.explore = function (root) {
         return '<div class="tr lv' + o.lv + '" data-p="' + U.esc(o.path) + '" data-lv="' + o.lv + '">' +
           '<span class="tn">' + (ch ? '<button class="tg" aria-expanded="false">' + ICON.chevR + '</button>' : '<i class="tg-sp"></i>') + U.esc(D.shortLabel(o.dim, o.key)) + '</span>' +
           '<span class="tbar"><i style="width:' + (o.v / tot * 100).toFixed(2) + '%"></i></span>' +
-          '<span class="num">' + U.fmt(o.v) + '</span><span class="num muted">' + U.share(o.v / tot) + '</span><span class="num muted">' + (R.nd.W ? U.fmt(o.v / R.nd.W, 1) : '–') + '</span>' +
-          '<span class="num ' + (d == null ? 'muted' : '') + '">' + (d == null ? '–' : U.pct(d)) + '</span></div>';
+          '<span class="num">' + U.fmt(o.v) + '</span><span class="num muted">' + U.share(o.v / tot) + '</span><span class="num muted">' + (R.days > 1 && R.nd.W ? U.fmt(o.v / R.nd.W, 1) : '–') + '</span>' +
+          '<span class="num dl ' + (d == null ? 'muted' : Math.abs(d) < 0.005 ? 'flat' : d > 0 ? 'up' : 'down') + '">' + (d == null ? '–' : (d > 0.005 ? '▲ ' : d < -0.005 ? '▼ ' : '') + U.pct(d)) + '</span></div>';
       };
       var box = U.$('#tree', c4);
       box.innerHTML = '<div class="tr th"><span>' + path.map(function (d) { return D.DIM[d].short; }).join(' › ') + '</span><span></span><span class="num">ราย</span><span class="num">%</span><span class="num">/วันทำการ</span><span class="num">เทียบช่วงก่อน</span></div>' + kids('', 0).map(row).join('');
@@ -145,7 +145,7 @@ PAGE_FN.explore = function (root) {
     countUp(root);
   }
   function treePaths() {
-    var p = [['bld', 'floor', 'clinic'], ['type', 'grp', 'clinic'], ['grp', 'clinic'], ['bld', 'grp', 'clinic']];
+    var p = [['unit', 'zone', 'clinic'], ['grp', 'clinic'], ['type', 'unit', 'clinic'], ['bld', 'floor', 'clinic']];
     D.G.forEach(function (g) { p.push(['g:' + g.id, 'grp', 'clinic']); });
     return p;
   }

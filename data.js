@@ -18,6 +18,11 @@ var D = {
     D.G = (b.groupings || []).slice();
     D.hol = b.holidays || {};
     D.settings = b.settings || {};
+    // ลำดับหน่วยงาน/โซน ตามผังที่ประชุมกำหนด (ตั้งค่า › ผังคลินิก)
+    var om = (D.settings.orgMap && D.settings.orgMap.units) || (window.SEED_UNITS || []);
+    D.UORD = {}; D.ZORD = {}; D.ZUNIT = {};
+    om.forEach(function (u, i) { D.UORD[u[0]] = i; (u[1] || []).forEach(function (z, j) { D.ZORD[z] = i * 100 + j; D.ZUNIT[z] = u[0]; }); });
+    D.C.forEach(function (c) { if (c && c.zone && !D.ZUNIT[c.zone]) D.ZUNIT[c.zone] = c.unit; });
     // ขอบเขตที่ผู้ใช้เห็น (หลังบ้านกรองซ้ำอีกชั้น)
     D.scopeMask = null;
     var sc = b.me && b.me.scope;
@@ -31,7 +36,9 @@ var D = {
   /* ---------- มิติข้อมูล (ดูตาม / ตัวกรอง) ---------- */
   buildDims: function () {
     var dims = [
-      { id: 'grp', name: 'กลุ่มคลินิก (รายงานสถิติ)', short: 'กลุ่มคลินิก' },
+      { id: 'unit', name: 'หน่วยงาน (หอผู้ป่วย OPD)', short: 'หน่วยงาน' },
+      { id: 'zone', name: 'โซน / ห้องตรวจ', short: 'โซน' },
+      { id: 'grp', name: 'กลุ่มคลินิก (รายงานสถิติ)', short: 'กลุ่มสถิติ' },
       { id: 'type', name: 'ประเภทคลินิก', short: 'ประเภท' },
       { id: 'bld', name: 'ตึก/อาคาร', short: 'ตึก' },
       { id: 'floor', name: 'ชั้น (ตึก + ชั้น)', short: 'ชั้น' }
@@ -45,6 +52,8 @@ var D = {
     var c = D.C[ci]; if (!c) return '';
     switch (dim) {
       case 'clinic': return c.code;
+      case 'unit': return c.unit || '(ยังไม่จัดกลุ่ม)';
+      case 'zone': return c.zone || '(ยังไม่จัดกลุ่ม)';
       case 'grp': return c.grp || '(ไม่ระบุกลุ่ม)';
       case 'type': return c.type || '(ไม่ระบุ)';
       case 'bld': return c.bld || '(ไม่ระบุตึก)';
@@ -63,7 +72,8 @@ var D = {
   },
   shortLabel: function (dim, key) {
     var l = D.label(dim, key);
-    if (dim === 'clinic') return key + ' · ' + l.replace(/^คลินิก/, '').replace(/\s*\(?นอกเวลา\)?.*$/, ' (นอกเวลา)').trim();
+    if (dim === 'clinic') return key + ' · ' + l.replace(/^คลินิก/, '').replace(/\s*\(?นอกเวลา\)?.*$/, ' (นอกเวลา)').replace(/\s*(อาคาร|ตึก)\s*(ศรีสวรินทิรานุสรณ์\s*)?150 ปี.*$/, '').trim();
+    if (dim === 'unit') return l.replace(/^หอผู้ป่วย\s*คลินิก/, '').replace(/^(.*)\((OPD \d)\)$/, '$2 · $1').trim();
     return l.replace(/^อาคารศรีสวรินทิรานุสรณ์ 150 ปี/, 'อาคาร 150 ปี');
   },
   grouping: function (id) { return D.G.filter(function (g) { return g.id === id; })[0] || null; },
@@ -72,6 +82,7 @@ var D = {
   values: function (dim, incHidden) {
     var seen = {}, out = [];
     D.C.forEach(function (c) { if (!c || (!c.show && !incHidden) || (D.scopeMask && !D.scopeMask[c.i])) return; var k = D.val(dim, c.i); if (!seen[k]) { seen[k] = 1; out.push(k); } });
+    if (dim === 'unit' || dim === 'zone') { var O = dim === 'unit' ? D.UORD : D.ZORD; return out.sort(function (a, b) { var x = O[a] != null ? O[a] : 1e6, y = O[b] != null ? O[b] : 1e6; return x - y || a.localeCompare(b, 'th'); }); }
     if (dim.indexOf('g:') === 0) { var g = D.grouping(dim.slice(2)); var ord = {}; (g ? g.groups : []).forEach(function (x, i) { ord[x.id] = x.order != null ? x.order : i; }); return out.sort(function (a, b) { return (a ? (ord[a] != null ? ord[a] : 999) : 1e4) - (b ? (ord[b] != null ? ord[b] : 999) : 1e4); }); }
     return out.sort(function (a, b) { return a.localeCompare(b, 'th', { numeric: true }); });
   },
@@ -83,10 +94,16 @@ var D = {
 
   /* ---------- ถอดรหัสข้อมูลจากหลังบ้าน ---------- */
   dec: function (s) { if (!s) return new Int32Array(0); var a = s.split(','), o = new Int32Array(a.length); for (var i = 0; i < a.length; i++) o[i] = parseInt(a[i], 36) || 0; return o; },
-  putDay: function (iso, d, s) {
+  /**
+   * src 'today' = ยอดวันนี้ล่าสุด (getToday) → ล็อกไว้ ไฟล์รายเดือนที่อาจเก่ากว่า (แคช 10 นาที) ทับไม่ได้
+   * ทุกหน้าจึงเห็นยอดวันนี้ชุดเดียวกัน (แก้ "ยอดแต่ละหน้าไม่ตรงกัน")
+   */
+  putDay: function (iso, d, s, src) {
     var x = D.DAYS[iso] || (D.DAYS[iso] = { d: iso });
-    if (d != null) { var p = d.split('|'); x.dt = p[0] || D.dayType(iso); x.n = parseInt(p[1], 36) || 0; x.cl = D.dec(p[2]); x.pt = D.dec(p[3]); x.at = p[4] || ''; }
-    if (s != null) x.sl = D.dec(s);
+    var set = function (dd) { var p = dd.split('|'); x.dt = p[0] || D.dayType(iso); x.n = parseInt(p[1], 36) || 0; x.cl = D.dec(p[2]); x.pt = D.dec(p[3]); x.at = p[4] || ''; };
+    if (src === 'today') { if (d != null) set(d); if (s != null) x.sl = D.dec(s); x.lockAt = x.at || 'x'; return x; }
+    if (d != null) { var at = d.split('|')[4] || ''; if (x.lockAt && !(at > x.lockAt)) return x; x.lockAt = null; set(d); }
+    if (s != null && !x.lockAt) x.sl = D.dec(s);
     return x;
   },
   /** โหลดข้อมูลช่วงวันที่ (part 'd' เสมอ, 's' เมื่อ needSlots) */
@@ -123,7 +140,7 @@ var D = {
   _tv: '',
   loadToday: function () {
     return api('getToday', {}).then(function (r) {
-      D.putDay(r.iso, r.d, r.s); D._tv = r.ver || ''; D.todayIso = r.iso;
+      D.putDay(r.iso, r.d, r.s, 'today'); D._tv = r.ver || ''; D.todayIso = r.iso;
       if (r.status) SYNC.set(r.status);
       return D.DAYS[r.iso];
     });
@@ -134,11 +151,15 @@ var D = {
   /* ---------- ตัวกรอง ---------- */
   FILT: null,
   filt: function () {
-    if (!D.FILT) D.FILT = STORE.get('u:' + S.me.emp + ':filt', null) || { dims: {}, ptg: [], hours: null, dts: ['W', 'S', 'H'], showHidden: false };
+    if (!D.FILT) D.FILT = STORE.get('u:' + S.me.emp + ':filt', null) || D.emptyFilt();
+    if (!D.FILT.kind) D.FILT.kind = 'all';
+    // ตัดค่าที่ไม่มีแล้ว (เช่น มิติเดิม "กลุ่มที่จัดเอง" ที่ถูกลบ)
+    Object.keys(D.FILT.dims || {}).forEach(function (k) { if (!D.DIM[k]) delete D.FILT.dims[k]; });
     return D.FILT;
   },
+  emptyFilt: function () { return { dims: {}, ptg: [], hours: null, dts: ['W', 'S', 'H'], kind: 'all', showHidden: false }; },
   saveFilt: function () { STORE.set('u:' + S.me.emp + ':filt', D.FILT); },
-  filtActive: function (F) { F = F || D.filt(); return Object.keys(F.dims).some(function (k) { return F.dims[k] && F.dims[k].length; }) || F.ptg.length > 0 || !!F.hours || F.dts.length < 3; },
+  filtActive: function (F) { F = F || D.filt(); return Object.keys(F.dims).some(function (k) { return F.dims[k] && F.dims[k].length; }) || F.ptg.length > 0 || !!F.hours || F.dts.length < 3 || (F.kind && F.kind !== 'all'); },
   compile: function (F) {
     F = F || D.filt();
     var cm = new Uint8Array(D.nC), sets = {};
@@ -155,15 +176,41 @@ var D = {
     var pm = null;
     if (F.ptg && F.ptg.length) { var gs = {}; F.ptg.forEach(function (g) { gs[g] = 1; }); pm = new Uint8Array(D.nP); for (var p = 0; p < D.nP; p++) if (D.P[p] && gs[D.ptGroupOf(p)]) pm[p] = 1; }
     var dt = {}; (F.dts && F.dts.length ? F.dts : ['W', 'S', 'H']).forEach(function (t) { dt[t] = 1; });
-    return { cm: cm, pm: pm, s0: F.hours ? F.hours[0] : 0, s1: F.hours ? F.hours[1] : NS - 1, hours: !!F.hours, dt: dt };
+    return { cm: cm, pm: pm, s0: F.hours ? F.hours[0] : 0, s1: F.hours ? F.hours[1] : NS - 1, hours: !!F.hours, dt: dt, kind: F.kind || 'all' };
   },
   describe: function (F) {
     F = F || D.filt(); var out = [];
-    Object.keys(F.dims).forEach(function (k) { var v = F.dims[k]; if (v && v.length && D.DIM[k]) out.push(D.DIM[k].short + ': ' + (v.length <= 2 ? v.map(function (x) { return D.shortLabel(k, x); }).join(', ') : v.length + ' รายการ')); });
+    Object.keys(F.dims).forEach(function (k) {
+      var v = F.dims[k]; if (!v || !v.length || !D.DIM[k]) return;
+      if (k === 'clinic') return out.push(D.describeClinics(v, F));
+      out.push(D.DIM[k].short + ': ' + (v.length <= 2 ? v.map(function (x) { return D.shortLabel(k, x); }).join(', ') : v.length + ' รายการ'));
+    });
     if (F.ptg.length) out.push('สิทธิ: ' + F.ptg.map(function (g) { return D.label('ptg', g); }).join(', '));
     if (F.hours) out.push('เวลา ' + U.hhmm(F.hours[0]) + '–' + U.hhmm(F.hours[1] + 1) + ' น.');
     if (F.dts.length < 3) out.push(F.dts.map(function (t) { return D.DT[t]; }).join(' + '));
+    if (F.kind === 'a') out.push('เฉพาะมาตามนัด'); else if (F.kind === 'w') out.push('เฉพาะ walk-in');
     return out;
+  },
+
+  /** คลินิกที่เลือกจากต้นไม้ → ย่อเป็น "OPD 1 · คลินิกจักษุกรรม ชั้น 8 · +3 คลินิก" */
+  describeClinics: function (codes, F) {
+    var on = {}; codes.forEach(function (c) { on[c] = 1; });
+    var U2 = {}, order = [];
+    D.C.forEach(function (c) {
+      if (!c || (!c.show && !(F && F.showHidden)) || (D.scopeMask && !D.scopeMask[c.i])) return;
+      var u = D.val('unit', c.i), z = D.val('zone', c.i);
+      if (!U2[u]) { U2[u] = { n: 0, k: 0, z: {} }; order.push(u); }
+      var zz = U2[u].z[z] || (U2[u].z[z] = { n: 0, k: 0 });
+      U2[u].n++; zz.n++; if (on[c.code]) { U2[u].k++; zz.k++; }
+    });
+    var parts = [], extra = 0;
+    order.sort(function (a, b) { return (D.UORD[a] != null ? D.UORD[a] : 1e6) - (D.UORD[b] != null ? D.UORD[b] : 1e6); }).forEach(function (u) {
+      var x = U2[u]; if (!x.k) return;
+      if (x.k === x.n) return parts.push(D.shortLabel('unit', u));
+      Object.keys(x.z).forEach(function (z) { var y = x.z[z]; if (!y.k) return; if (y.k === y.n) parts.push(z); else extra += y.k; });
+    });
+    if (extra) parts.push(extra + ' คลินิก');
+    return parts.length > 3 ? parts.slice(0, 2).join(' · ') + ' และอีก ' + (parts.length - 2) + ' รายการ' : parts.join(' · ');
   },
 
   /* ---------- รวมยอด ---------- */
@@ -174,12 +221,15 @@ var D = {
    */
   agg: function (from, to, opt) {
     opt = opt || {};
-    var K = opt.K || D.compile(opt.F), cm = K.cm, pm = K.pm, nC = D.nC, nP = D.nP;
-    var R = { from: from, to: to, v: 0, a: 0, w: 0, approx: !!pm, byC: new Float64Array(nC * 3), byP: new Float64Array(nP), byDay: {}, nd: { W: 0, S: 0, H: 0 }, days: 0, slotsOk: true, lastAt: '' };
+    var K = opt.K || D.compile(opt.F), cm = K.cm, pm = K.pm, nC = D.nC, nP = D.nP, kind = K.kind || 'all';
+    var R = { from: from, to: to, v: 0, a: 0, w: 0, approx: !!pm || kind !== 'all', byC: new Float64Array(nC * 3), byP: new Float64Array(nP), byDay: {}, nd: { W: 0, S: 0, H: 0 }, days: 0, slotsOk: true, lastAt: '' };
     if (opt.slots || K.hours) R.bySlot = new Float64Array(NS * 2);
     if (opt.cs) R.cs = new Float64Array(nC * NS);
     if (opt.dow) { R.dowS = new Float64Array(7 * NS); R.dowW = new Float64Array(7 * NS); R.dowN = new Float64Array(7); }
-    var vC = new Float64Array(nC), hs = new Float64Array(nC), ps = new Float64Array(nC), dates = U.dates(from, to);
+    var vC = new Float64Array(nC), kC = new Float64Array(nC), hs = new Float64Array(nC), ps = new Float64Array(nC), dates = U.dates(from, to);
+    // นัด/walk-in: เลือกคอลัมน์ (cl = [คลินิก, ยอด, นัด, walk-in] · sl = [คลินิก, ช่อง, ยอด, walk-in])
+    var pickCl = kind === 'a' ? 2 : kind === 'w' ? 3 : 1;
+    var slV = function (v, w) { return kind === 'a' ? v - w : kind === 'w' ? w : v; }, slW = function (v, w) { return kind === 'a' ? 0 : w; };
     for (var di = 0; di < dates.length; di++) {
       var iso = dates[di], x = D.DAYS[iso];
       var dt = D.dayType(iso);
@@ -190,15 +240,15 @@ var D = {
       var needSl = K.hours || opt.slots || opt.cs || opt.dow;
       if (needSl && !x.sl) { R.slotsOk = false; if (K.hours) continue; }
       var cl = x.cl, pt = x.pt, sl = x.sl, i, ci, dv = 0, da = 0, dw = 0, wd = U.dow(iso);
-      vC.fill(0); hs.fill(0); ps.fill(0);
-      for (i = 0; i < cl.length; i += 4) vC[cl[i]] = cl[i + 1];
+      vC.fill(0); kC.fill(0); hs.fill(0); ps.fill(0);
+      for (i = 0; i < cl.length; i += 4) { vC[cl[i]] = cl[i + 1]; kC[cl[i]] = cl[i + pickCl]; }
       // สัดส่วนสิทธิที่เลือกต่อคลินิก
       if (pm) { for (i = 0; i < pt.length; i += 3) if (cm[pt[i]] && pm[pt[i + 1]]) ps[pt[i]] += pt[i + 2]; for (ci = 0; ci < nC; ci++) ps[ci] = vC[ci] ? ps[ci] / vC[ci] : 0; }
       // ช่วงเวลา
       if (sl && (needSl)) {
         for (i = 0; i < sl.length; i += 4) {
           ci = sl[i]; if (!cm[ci]) continue;
-          var s = sl[i + 1], v = sl[i + 2], w = sl[i + 3], f = pm ? ps[ci] : 1;
+          var s = sl[i + 1], v = slV(sl[i + 2], sl[i + 3]), w = slW(sl[i + 2], sl[i + 3]), f = pm ? ps[ci] : 1;
           if (K.hours && (s < K.s0 || s > K.s1)) continue;
           if (K.hours) hs[ci] += v;
           if (R.bySlot) { R.bySlot[s * 2] += v * f; R.bySlot[s * 2 + 1] += w * f; }
@@ -213,14 +263,15 @@ var D = {
           ci = cl[i]; if (!cm[ci]) continue;
           var f2 = pm ? ps[ci] : 1;
           if (!f2) continue;
-          dv += cl[i + 1] * f2; da += cl[i + 2] * f2; dw += cl[i + 3] * f2;
-          R.byC[ci * 3] += cl[i + 1] * f2; R.byC[ci * 3 + 1] += cl[i + 2] * f2; R.byC[ci * 3 + 2] += cl[i + 3] * f2;
+          var cv = cl[i + pickCl], ca = kind === 'w' ? 0 : cl[i + 2], cw = kind === 'a' ? 0 : cl[i + 3];
+          dv += cv * f2; da += ca * f2; dw += cw * f2;
+          R.byC[ci * 3] += cv * f2; R.byC[ci * 3 + 1] += ca * f2; R.byC[ci * 3 + 2] += cw * f2;
         }
       }
-      // สิทธิ
+      // สิทธิ (สัดส่วนตามช่วงเวลา/นัด-walk-in ที่เลือก)
       for (i = 0; i < pt.length; i += 3) {
         ci = pt[i]; if (!cm[ci] || (pm && !pm[pt[i + 1]])) continue;
-        var hf = K.hours ? (vC[ci] ? hs[ci] / vC[ci] : 0) : 1;
+        var hf = K.hours ? (vC[ci] ? hs[ci] / vC[ci] : 0) : (kind !== 'all' ? (vC[ci] ? kC[ci] / vC[ci] : 0) : 1);
         R.byP[pt[i + 1]] += pt[i + 2] * hf;
       }
       R.v += dv; R.a += da; R.w += dw;
@@ -253,6 +304,20 @@ var D = {
   },
   /** ช่วงที่มีข้อมูลเริ่มต้น */
   firstDate: function () { return (S.boot.status && S.boot.status.firstDate) || '2023-10-01'; }
+};
+
+/* =====================================================================
+   ความละเอียดของกราฟตามเวลา (เก็บข้อมูลช่องละ 15 นาที · แสดงตามที่ตั้ง 15/30/60 นาที)
+   ตอนนี้ตั้งต้น 60 นาที เพราะ HIS ส่งเวลาของผู้ป่วยนัดเป็นเวลานัด (:00/:30) — ไอทีเพิ่มเวลามาถึงจริงเมื่อไร ปรับเป็น 15/30 ได้
+   ===================================================================== */
+var TR = {
+  res: function () { var r = +((D.settings || {}).timeRes) || 60; return [15, 30, 60].indexOf(r) >= 0 ? r : 60; },
+  step: function (res) { return (res || TR.res()) / SLOT; },
+  /** รวมช่อง 15 นาทีเป็นช่องละ step · arr[base + s] */
+  bin: function (arr, base, s0, s1, step) { var o = []; for (var s = s0; s <= s1; s += step) { var v = 0; for (var k = 0; k < step && s + k <= s1; k++) v += arr[base + s + k] || 0; o.push(v); } return o; },
+  labels: function (s0, s1, step) { var o = []; for (var s = s0; s <= s1; s += step) o.push(U.hhmm(s)); return o; },
+  unit: function (res) { res = res || TR.res(); return res === 60 ? 'ชั่วโมง' : res + ' นาที'; },
+  note: function () { var st = (S.boot && (SYNC.st || S.boot.status)) || {}; return st.apptTime ? 'ผู้ป่วยนัดลงเวลาตามเวลานัด (HIS ยังไม่ส่งเวลามาถึงจริง) จึงแสดงรายชั่วโมง' : ''; }
 };
 
 /* =====================================================================
@@ -327,7 +392,9 @@ var PER = {
     U.$('#perLbl', box).onclick = function () { PER.pickCustom(this, p, function (np) { p = np; fire(); }); };
     U.$('#fyTog', box).onchange = function () { STORE.set('u:' + S.me.emp + ':fiscal', this.checked); if (p.kind === 'quarter' || p.kind === 'year') p = PER.make(p.kind, p.from > nowBkk().iso ? nowBkk().iso : p.to < nowBkk().iso ? p.to : nowBkk().iso, this.checked); fire(); };
     paint();
-    return { get: function () { return p; } };
+    var ctl = { get: function () { return p; }, kinds: kinds, set: function (np, silent) { p = np; PER.set(p); paint(); if (!silent) onChange(p); } };
+    if (window.FUI) FUI._pc = ctl;   // ให้ตัวกรองขั้นที่ 1 เปลี่ยนช่วงเวลาของหน้านี้ได้
+    return ctl;
   },
   pickCustom: function (anchor, p, cb) {
     var t = nowBkk().iso, f = D.firstDate();

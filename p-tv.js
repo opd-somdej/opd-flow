@@ -29,25 +29,24 @@ PAGE_FN.tv = function (root) {
     if (k === 'hero') {
       body.innerHTML = '<div class="tv-hero"><div><span>ผู้ป่วยนอกวันนี้ถึงตอนนี้</span><b data-count="' + Math.round(L.R.v) + '">' + U.fmt(L.R.v) + '</b><em>คาดว่าทั้งวัน ≈ ' + U.fmt(L.proj) + ' ราย</em></div>' +
         '<div class="tv-k">' + kpi({ label: '1 ชั่วโมงล่าสุด', value: L.l60, unit: 'ราย', sub: 'ปกติ ≈ ' + U.fmt(L.e60) }) + kpi({ label: 'ถึงตอนนี้เทียบปกติ', value: L.cumE ? U.pct(L.R.v / L.cumE - 1, 0) : '–' }) + kpi({ label: 'walk-in', value: L.R.v ? U.share(L.R.w / L.R.v, 0) : '–' }) + '</div></div><div id="tvRib"></div>';
-      ribbon(U.$('#tvRib'), { act: L.act, exp: L.exp, now: L.nowSlot, from: 20, to: 87 });
+      ribbon(U.$('#tvRib'), { act: L.act, exp: L.exp, now: L.nowSlot, from: 24, to: 87, vals: TR.step() >= 4 });
       countUp(body);
     } else if (k === 'floor') {
-      var dim = 'floor', bd = LIVE.byDim(L, dim).sort(function (a, b) { return b.v - a.v; }).slice(0, 12);
-      body.innerHTML = '<h2>วันนี้แยกตามชั้น (ตัวเลขในวงเล็บ = ปกติถึงเวลานี้)</h2><div class="tv-chart" id="tvC"></div>';
-      CH.barsH(U.$('#tvC'), bd.map(function (o) { return { label: o.label, title: o.title, v: o.v, e: o.e, color: o.e && o.v / o.e > 1.3 ? CH.T().serious : null }; }), { labelW: 320, lbl: function (r) { return U.fmt(r.v) + '  (' + U.fmt(r.e) + ')'; } });
+      var dim = 'unit', bd = LIVE.byDim(L, dim).sort(function (a, b) { return b.v - a.v; }).slice(0, 12);
+      body.innerHTML = '<h2>วันนี้แยกตามหน่วยงาน (ตัวเลขในวงเล็บ = ปกติถึงเวลานี้ · สีแดง = มากกว่าปกติเกิน 30%)</h2><div class="tv-chart" id="tvC"></div>';
+      CH.barsH(U.$('#tvC'), bd.map(function (o) { return { label: o.label, title: o.title, v: o.v, e: o.e, color: o.e && o.v / o.e > 1.3 ? CH.T().crit : null }; }), { labelW: 360, lbl: function (r) { return U.fmt(r.v) + '  (' + U.fmt(r.e) + ')'; } });
     } else if (k === 'top') {
       var cl = LIVE.byDim(L, 'clinic').sort(function (a, b) { return b.h - a.h; }).filter(function (o) { return o.h > 0; }).slice(0, 10);
       body.innerHTML = '<div class="tv-two"><div><h2>มาถึงมากที่สุดใน 1 ชั่วโมงล่าสุด</h2><div class="tv-chart" id="tvC"></div></div><div><h2>แจ้งเตือน</h2>' + ALERTS.html(6) + '</div></div>';
       if (cl.length) CH.barsH(U.$('#tvC'), cl.map(function (o) { return { label: D.shortLabel('clinic', o.key), v: o.h, he: o.he }; }), { labelW: 300, lbl: function (r) { return U.fmt(r.v) + (r.he ? '  (ปกติ ' + U.fmt(r.he) + ')' : ''); } });
       else U.$('#tvC').innerHTML = '<div class="empty">ยังไม่มีผู้ป่วยใน 1 ชั่วโมงล่าสุด</div>';
     } else {
-      var d2 = 'bld', top = LIVE.byDim(L, d2).sort(function (a, b) { return b.v - a.v; }).slice(0, 10), hx = [], hd = [], ki = {};
+      var d2 = 'zone', st = TR.step(), top = LIVE.byDim(L, d2).sort(function (a, b) { return b.v - a.v; }).slice(0, 12), hx = TR.labels(24, 87, st), hd = [], ki = {};
       top.forEach(function (o, i) { ki[o.key] = i; });
-      for (var s = 20; s < 88; s += 2) hx.push(U.hhmm(s));
       var mat = top.map(function () { return new Float64Array(hx.length); });
-      for (var ci = 0; ci < D.nC; ci++) { if (!L.K.cm[ci]) continue; var i2 = ki[D.val(d2, ci)]; if (i2 == null) continue; for (s = 20; s < 88 && s <= L.nowSlot; s++) mat[i2][(s - 20) >> 1] += L.R.cs[ci * NS + s]; }
-      top.forEach(function (o, yi) { for (var xi = 0; xi < hx.length; xi++) if (20 + xi * 2 <= L.nowSlot) hd.push([xi, yi, mat[yi][xi]]); });
-      body.innerHTML = '<h2>วันนี้: ตึก × ช่วงเวลา (ครึ่งชั่วโมง)</h2><div class="tv-chart" id="tvC"></div>';
+      for (var ci = 0; ci < D.nC; ci++) { if (!L.K.cm[ci]) continue; var i2 = ki[D.val(d2, ci)]; if (i2 == null) continue; for (var s = 24; s < 88 && s <= L.nowSlot; s++) mat[i2][Math.floor((s - 24) / st)] += L.R.cs[ci * NS + s]; }
+      top.forEach(function (o, yi) { for (var xi = 0; xi < hx.length; xi++) if (24 + xi * st <= L.nowSlot) hd.push([xi, yi, mat[yi][xi]]); });
+      body.innerHTML = '<h2>วันนี้: โซน × ช่วงเวลา (ช่องละ ' + TR.unit() + ')</h2><div class="tv-chart" id="tvC"></div>';
       if (hd.length) CH.heat(U.$('#tvC'), { x: hx, y: top.map(function (o) { return o.label; }), data: hd, labelW: 300, labels: true, labelMin: 1 });
     }
   }

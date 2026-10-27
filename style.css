@@ -7,14 +7,14 @@
    ⚠ บทเรียน: อะนิเมชันใช้ fill-mode backwards · ไม่ใช้ backdrop-filter/transform ค้างบนกล่องที่มีเมนูลอย
    ===================================================================== */
 :root{
-  --canvas:#edf2f4; --surface:#ffffff; --surface-2:#f5f8f9; --ink:#0f2230; --ink-2:#384b58; --muted:#677985; --line:#d6e0e5; --line-2:#e7eef1;
+  --canvas:#eef2f4; --surface:#ffffff; --surface-2:#f4f7f8; --ink:#0f2230; --ink-2:#2f424f; --muted:#56666f; --line:#d6e0e5; --line-2:#e7eef1;
   --brand:#0a6a72; --brand-2:#08575e; --brand-ink:#075a61; --brand-50:#e3f1f2; --brand-100:#c4e3e5;
   --rail:#07282d; --rail-2:#0c363c; --rail-ink:#d3e6e8; --rail-mute:#86a6aa; --rail-on:#13474e;
   --rc:#c8102e;
   --grid:#e1e0d9; --axis:#c3c2b7; --other:#9a9890;
-  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300; --c7:#6250d6; --c8:#e34948;
+  --c1:#0b6fb8; --c2:#e08a00; --c3:#00936b; --c4:#c2508f; --c5:#d4570b; --c6:#4fa8e0; --c7:#7a5c14; --c8:#5f6b7a;
   --s1:#e6f0fb; --s2:#cde2fb; --s3:#9ec5f4; --s4:#86b6ef; --s5:#5598e7; --s6:#3987e5; --s7:#256abf; --s8:#184f95; --s9:#0d366b;
-  --good:#0ca30c; --good-ink:#006300; --warning:#fab219; --warning-ink:#8a5a00; --serious:#ec835a; --serious-ink:#a3401a; --critical:#d03b3b;
+  --good:#13853f; --good-ink:#0b6630; --warning:#e3a008; --warning-ink:#875300; --serious:#e0702f; --serious-ink:#a3401a; --critical:#c62828; --info:#1d5fa8; --info-ink:#174c88;
   --shadow:0 1px 2px rgba(15,34,48,.05),0 12px 32px -20px rgba(15,34,48,.28); --shadow-lg:0 30px 70px -24px rgba(7,40,45,.5);
   --font:'IBM Plex Sans Thai','Sarabun',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-d:'Anuphan','IBM Plex Sans Thai',system-ui,sans-serif;
@@ -26,18 +26,18 @@
   --brand:#3fb0b8; --brand-2:#5cc4cb; --brand-ink:#7dd3d9; --brand-50:#12302f; --brand-100:#1b4446;
   --rail:#051a1d; --rail-2:#0a262a; --rail-on:#11393e;
   --grid:#2c2c2a; --axis:#383835; --other:#6f6d68;
-  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
+  --c1:#4a9ce8; --c2:#f0a030; --c3:#2fbf8f; --c4:#e07ab4; --c5:#f07a3a; --c6:#86c8f0; --c7:#c9a24a; --c8:#9aa6b4;
   --s1:#132536; --s2:#133461; --s3:#184f95; --s4:#1c5cab; --s5:#2a78d6; --s6:#3987e5; --s7:#6da7ec; --s8:#9ec5f4; --s9:#cde2fb;
-  --good-ink:#0ca30c; --warning-ink:#fab219; --serious-ink:#ec835a;
+  --good:#2fbf6a; --good-ink:#5fd68e; --warning-ink:#f3c14f; --serious-ink:#f09a6a; --critical:#ef5350; --info:#5aa2ee; --info-ink:#8cc0f5;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -20px rgba(0,0,0,.8); color-scheme:dark}}
 :root[data-theme="dark"]{
   --canvas:#0a1316; --surface:#111d21; --surface-2:#16242a; --ink:#e7f0f2; --ink-2:#c3d2d6; --muted:#8ea2a8; --line:#22343a; --line-2:#1b2b30;
   --brand:#3fb0b8; --brand-2:#5cc4cb; --brand-ink:#7dd3d9; --brand-50:#12302f; --brand-100:#1b4446;
   --rail:#051a1d; --rail-2:#0a262a; --rail-on:#11393e;
   --grid:#2c2c2a; --axis:#383835; --other:#6f6d68;
-  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
+  --c1:#4a9ce8; --c2:#f0a030; --c3:#2fbf8f; --c4:#e07ab4; --c5:#f07a3a; --c6:#86c8f0; --c7:#c9a24a; --c8:#9aa6b4;
   --s1:#132536; --s2:#133461; --s3:#184f95; --s4:#1c5cab; --s5:#2a78d6; --s6:#3987e5; --s7:#6da7ec; --s8:#9ec5f4; --s9:#cde2fb;
-  --good-ink:#0ca30c; --warning-ink:#fab219; --serious-ink:#ec835a;
+  --good:#2fbf6a; --good-ink:#5fd68e; --warning-ink:#f3c14f; --serious-ink:#f09a6a; --critical:#ef5350; --info:#5aa2ee; --info-ink:#8cc0f5;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -20px rgba(0,0,0,.8); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -590,3 +590,251 @@ body.tv-mode .shell{grid-template-columns:minmax(0,1fr)}
   html,body{overflow-x:hidden}
   .help li,.help p,.help dd{overflow-wrap:anywhere}
 }
+
+
+/* =====================================================================
+   รุ่น 2569-10-27 — ใช้ง่ายขึ้นทุกอุปกรณ์ · สีอ่านง่าย (มีคำ/สัญลักษณ์กำกับ) · ปุ่มบอกสถานะ · เมนูย่อได้
+   ===================================================================== */
+/* ---- แถบความคืบหน้าด้านบน (ขึ้นทันทีที่รอเซิร์ฟเวอร์) ---- */
+.tprog{position:fixed;left:0;right:0;top:0;height:3px;z-index:95;pointer-events:none;opacity:0;transition:opacity .2s}
+.tprog.on{opacity:1;background:linear-gradient(90deg,transparent,var(--brand) 30%,#5fd0d6 50%,var(--brand) 70%,transparent);background-size:50% 100%;background-repeat:no-repeat;animation:tprog 1.1s linear infinite}
+@keyframes tprog{from{background-position:-50% 0}to{background-position:150% 0}}
+.spin-i{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;flex:none}
+.btn.is-busy{opacity:.85;cursor:progress}
+.busy{bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--shadow-lg);font-weight:500}
+/* ---- หน้ากำลังคำนวณ: เนื้อหาเดิมจางลง ไม่กระตุก ---- */
+#page{position:relative}
+#page.is-loading > *:not(.ld-over){opacity:.38;pointer-events:none;transition:opacity .15s}
+.ld-over{position:sticky;top:76px;z-index:15;display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100% - 20px);margin:0 auto 10px;padding:9px 16px;border-radius:99px;background:var(--ink);color:var(--surface);font-weight:500;box-shadow:var(--shadow-lg)}
+
+/* ---- หัวหน้า + แถบเครื่องมือ (ไม่ทับเนื้อหาอีก) ---- */
+.top{background:var(--canvas);backdrop-filter:none}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.toolbar:empty{display:none}
+.toolbar .exp-tools{margin-left:auto}
+.fbtn.on{border-color:var(--brand);background:var(--brand-50);color:var(--brand-ink);font-weight:600}
+.chip.clear{display:inline-flex;align-items:center;gap:3px;color:var(--ink-2)} .chip.clear svg{width:14px;height:14px}
+.ctx b{color:var(--ink)}
+.note-bar{margin:-6px 0 14px;padding:8px 12px;border-radius:9px;background:color-mix(in srgb,var(--info) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--info) 30%,transparent);color:var(--info-ink);font-size:.86rem}
+.note-i{color:var(--info-ink)}
+
+/* ---- แถบเมนูด้านข้าง: ย่อ/ขยาย ---- */
+.rail-top{display:flex;align-items:flex-start;gap:4px}
+.rail-top .brand{flex:1;min-width:0}
+.rail-tog{color:var(--rail-ink);flex:none;margin-top:4px}
+.rail-tog:hover{background:var(--rail-2);border-color:transparent}
+.shell{transition:grid-template-columns .25s var(--ease)}
+@media (min-width:901px){
+  body.rail-mini .shell{grid-template-columns:76px minmax(0,1fr)}
+  body.rail-mini .rail{padding:14px 10px;align-items:center}
+  body.rail-mini .rail-top{flex-direction:column;align-items:center;gap:8px}
+  body.rail-mini .brand{padding:2px 0 6px;justify-content:center}
+  body.rail-mini .brand span,body.rail-mini .rail nav a span,body.rail-mini .me,body.rail-mini .ver{display:none}
+  body.rail-mini .rail nav{width:100%;align-items:center}
+  body.rail-mini .rail nav a{justify-content:center;padding:11px 0;width:52px}
+  body.rail-mini .rail nav a.on::before{left:-10px}
+  body.rail-mini .rail-foot{width:100%;justify-items:center}
+  body.rail-mini .rail-act{flex-direction:column}
+}
+.rail nav a svg{width:22px;height:22px}
+.scrim{display:none}
+
+/* ---- ตัวเลขสรุป: ไม่ล้น/ไม่เบี้ยวทุกขนาดจอ ---- */
+.kpis{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.kpi .kl{font-size:.88rem;color:var(--ink-2);font-weight:500}
+.kpi .kv{font-size:clamp(1.35rem,1.1rem + 1vw,1.9rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .delta{font-weight:700;padding:1px 7px;border-radius:99px;background:var(--surface-2);white-space:nowrap}
+.kpi .delta.up{color:var(--info-ink);background:color-mix(in srgb,var(--info) 12%,transparent)}
+.kpi .delta.down{color:var(--warning-ink);background:color-mix(in srgb,var(--warning) 16%,transparent)}
+.kpi.good{border-color:var(--good);box-shadow:inset 4px 0 0 var(--good)}
+.kpi.hot{border-color:var(--critical);box-shadow:inset 4px 0 0 var(--critical)}
+.tr .dl.up{color:var(--info-ink);font-weight:600} .tr .dl.down{color:var(--warning-ink);font-weight:600}
+
+/* ---- สถานะ: สี + สัญลักษณ์ + คำ ---- */
+.st{gap:6px;font-weight:600}
+.st i{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;font:700 .68rem/1 var(--font);font-style:normal;color:#fff;flex:none}
+.st.good i{background:var(--good)} .st.good{color:var(--good-ink)}
+.st.warning i{background:var(--warning);color:#2b1d00} .st.warning{color:var(--warning-ink)}
+.st.critical i{background:var(--critical)} .st.critical{color:var(--critical)}
+.st.info i{background:var(--info)} .st.info{color:var(--info-ink)}
+.st.none{color:var(--muted);font-weight:400}
+.legend-line{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 0;font-size:.84rem}
+.gap{font-weight:700} .gap.neg{color:var(--critical)} .gap.pos{color:var(--info-ink)} .gap.ok{color:var(--good-ink)}
+.flag-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;border-radius:11px;border:1px solid var(--warning);background:color-mix(in srgb,var(--warning) 12%,var(--surface))}
+.flag-bar > div{flex:1 1 260px;min-width:0}
+.flag-bar .fi{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--warning);color:#2b1d00;flex:none}
+.warn-line{padding:6px 10px;border-radius:8px;background:color-mix(in srgb,var(--warning) 12%,transparent)}
+
+/* ---- ตัวกรองแบบขั้น 1-2-3 ---- */
+.fdrawer .modal{width:min(640px,100%)}
+.fdrawer .mbody{padding-top:8px}
+.fsteps{list-style:none;margin:0 0 6px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;position:sticky;top:-8px;background:var(--surface);z-index:2;padding:8px 0}
+.fsteps button{width:100%;display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 10px;cursor:pointer;text-align:left;color:var(--ink-2);font-weight:500;min-height:48px}
+.fsteps button i{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);font:700 .85rem var(--font-d);font-style:normal;flex:none}
+.fsteps button.on{border-color:var(--brand);background:var(--brand-50);color:var(--brand-ink);font-weight:700}
+.fsteps button.on i{background:var(--brand);border-color:var(--brand);color:#fff}
+.fsteps button.done i{background:var(--brand-100);color:var(--brand-ink)}
+.fsteps span{line-height:1.2;font-size:.9rem}
+.fnote{font-size:.86rem;color:var(--ink-2);background:var(--surface-2);border-radius:9px;padding:8px 12px;margin:6px 0 10px}
+.seg.big button{padding:8px 14px;font-size:.95rem}
+.fp-nav{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.fp-nav .btn{padding:8px 10px}
+.fp-lbl{flex:1;text-align:center;font:600 1.05rem var(--font-d);padding:8px;border-radius:10px;background:var(--surface-2)}
+.fp-custom{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.quick button{padding:6px 11px;font-size:.86rem;border-radius:99px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts.mt{margin:12px 0 4px}
+.opt{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-size:.92rem;min-height:44px;flex:0 1 auto}
+.opt:has(input:checked){border-color:var(--brand);background:var(--brand-50);color:var(--brand-ink)}
+.opt input{accent-color:var(--brand);width:18px;height:18px;flex:none;margin:0}
+.opts .opt span b{color:var(--ink)}
+.tree-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tree-tools .srch{flex:1 1 240px}
+.tree-tools .srch input{width:100%}
+.ttree{border:1px solid var(--line);border-radius:12px;max-height:52vh;overflow:auto}
+.ttree details{border-bottom:1px solid var(--line-2)}
+.ttree details:last-child{border-bottom:0}
+.ttree summary{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;cursor:pointer;list-style:none;min-height:46px}
+.ttree summary::-webkit-details-marker{display:none}
+.ttree summary::before{content:'▸';color:var(--muted);width:18px;text-align:center;transition:transform .15s;flex:none}
+.ttree details[open] > summary::before{transform:rotate(90deg)}
+.ttree .tz summary{padding-left:26px;background:var(--surface-2)}
+.tck{display:flex;align-items:center;gap:9px;cursor:pointer;flex:1;min-width:0;padding:6px 0}
+.tck input{width:20px;height:20px;accent-color:var(--brand);flex:none;margin:0}
+.tck span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tck.lv0 span{font-weight:700}
+.tck.lv1 span{font-weight:600}
+.tcl{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0 10px;padding:4px 12px 8px 54px}
+.tcl .tck{font-size:.88rem;padding:5px 0}
+.tcl .tck b{color:var(--brand-ink);font-weight:600}
+.tn-c{font-size:.78rem;color:var(--muted);background:var(--surface-2);border-radius:99px;padding:1px 8px;flex:none}
+.hid-ck{margin-top:10px}
+.fsub{margin-top:10px}
+.fsum{flex:1 1 100%;font-size:.85rem;color:var(--ink-2);background:var(--surface-2);border-radius:9px;padding:7px 10px;margin-bottom:2px}
+.fdrawer footer .btn{min-height:42px}
+.fdrawer footer .btn.primary{min-width:120px;justify-content:center}
+
+/* ---- แถบเวลารายชั่วโมง (มีตัวเลขบนแท่ง) ---- */
+.ribbon.hourly .rcells{gap:6px;height:120px;padding-top:20px}
+.ribbon.hourly .rc{border-radius:6px 6px 3px 3px}
+.rc em{position:absolute;left:0;right:0;top:-19px;text-align:center;font:600 .74rem var(--font);font-style:normal;color:var(--ink-2)}
+.ribbon.hourly .rlabels span{transform:none;text-align:center}
+
+/* ---- อัตรากำลัง ---- */
+.st-steps{margin-bottom:16px}
+.steps3{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.steps3 li{display:flex;gap:10px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);min-width:0}
+.steps3 li > div{min-width:0;display:flex;flex-direction:column;gap:2px}
+.steps3 .sn{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;font:700 1rem var(--font-d);flex:none}
+.steps3 .pv .sn{background:var(--good)}
+.steps3 b{font-size:.92rem}
+.steps3 p{margin:0;font-size:.84rem;color:var(--ink-2)}
+.steps3 em{font-style:normal;font-weight:700;color:var(--ink)}
+.steps3 strong{font:700 1.6rem/1.1 var(--font-d);color:var(--brand-ink);margin-top:auto}
+.steps3 strong small{font-size:.85rem;color:var(--muted);font-weight:500}
+.st-wrap{max-height:none}
+.st-tbl th,.st-tbl td{white-space:nowrap}
+.st-tbl .stick{position:sticky;left:0;z-index:1;background:var(--surface);min-width:200px;white-space:normal}
+.st-tbl th.stick{z-index:3;background:var(--surface-2)}
+.st-tbl tr.urow td{background:var(--brand-50);border-top:2px solid var(--brand-100)}
+.st-tbl tr.urow td.stick{background:var(--brand-50)}
+.st-tbl tr.zrow td.stick{padding-left:22px}
+.st-tbl tr.sel td{background:color-mix(in srgb,var(--brand) 8%,var(--surface))}
+.st-tbl tr.tot td.stick{background:var(--surface-2)}
+.st-tbl input.cell{width:76px;padding:6px 8px;font-size:.92rem;border-width:1.5px}
+.st-tbl input.cell:not(:placeholder-shown){border-color:var(--brand-100)}
+.st-tbl input[data-act]::placeholder{color:var(--warning-ink)}
+
+/* ---- ตั้งค่า: ปฏิทินสถานะรายวัน / ตรวจเทียบ / นำเข้าผัง ---- */
+.dcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.dcal .dh{text-align:center;font-size:.78rem;color:var(--muted);padding-bottom:2px}
+.dc{position:relative;border-radius:9px;padding:5px 7px;min-height:56px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;justify-content:space-between}
+.dc span{font-size:.76rem;color:var(--muted)}
+.dc b{font:600 .95rem var(--font-d);text-align:right}
+.dc em{position:absolute;top:4px;right:6px;font-style:normal;font-size:.78rem;font-weight:700}
+.dc.ok{border-color:color-mix(in srgb,var(--good) 45%,transparent)} .dc.ok em{color:var(--good-ink)}
+.dc.old{background:color-mix(in srgb,var(--warning) 14%,var(--surface));border-color:var(--warning)} .dc.old em{color:var(--warning-ink)}
+.dc.none{background:var(--surface-2);border-style:dashed} .dc.none b{color:var(--critical)}
+.dc.zero b{color:var(--muted)}
+.dc.fut{opacity:.35}
+.dc.dt-S span,.dc.dt-H span{color:var(--critical)}
+.dk{display:inline-flex;align-items:center;gap:6px}
+.dk::before{content:'';width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}
+.dk.ok::before{border-color:var(--good)} .dk.old::before{background:color-mix(in srgb,var(--warning) 30%,transparent);border-color:var(--warning)} .dk.none::before{border-style:dashed;background:var(--surface-2)}
+.bad-row td{background:color-mix(in srgb,var(--critical) 7%,transparent)}
+.imp h4{margin:14px 0 8px}
+.imp-units{display:grid;gap:8px}
+.imp-u{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+.imp-u input{border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-weight:600;background:var(--surface)}
+.imp-u .xs{grid-column:1/-1}
+.imp details{margin-top:10px}
+.ctbl select{min-width:150px}
+label.btn{cursor:pointer}
+
+/* ---- นิ้วสัมผัส (มือถือ/แท็บเล็ต): ปุ่มใหญ่พอกด ---- */
+@media (pointer:coarse){
+  .btn{min-height:42px;padding:9px 14px}
+  .btn.sm{min-height:36px}
+  .icon-btn{width:42px;height:42px}
+  .seg button{padding:8px 12px}
+  .per-nav .icon-btn{width:40px;height:40px}
+  .dimsel select,.sm-sel{padding:9px 10px}
+  .info-btn{width:24px;height:24px;font-size:12px}
+  .tabs button{padding:12px 14px}
+  .tbl td{padding:9px 10px}
+}
+
+/* ---- แท็บเล็ต ---- */
+@media (max-width:1180px) and (min-width:901px){
+  .steps3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .toolbar{padding:10px 18px}
+  #page{padding:18px 18px 60px}
+}
+/* ---- มือถือ ---- */
+@media (max-width:900px){
+  .rail{width:min(300px,86vw);z-index:60}
+  body.rail-open .scrim{display:block;position:fixed;inset:0;background:rgba(5,20,24,.45);z-index:55}
+  .rail-tog{display:none}
+  .toolbar{padding:8px 12px;gap:8px;position:sticky;top:57px;z-index:19;box-shadow:0 6px 12px -12px rgba(0,0,0,.35)}
+  .toolbar .per .seg,.toolbar .fy-tog{display:none}
+  .toolbar .per{width:auto;flex:1 1 auto}
+  .toolbar .per-nav{flex:1;justify-content:space-between}
+  .toolbar .per-label{flex:1;font-size:.95rem}
+  .toolbar .fbar{width:auto;flex:1 1 100%;order:-1}
+  .toolbar .chips{max-width:none;flex:1;min-width:0}
+  .toolbar .dimsel span{display:none}
+  .toolbar .dimsel select{max-width:42vw}
+  .ld-over{top:120px}
+  .steps3{grid-template-columns:minmax(0,1fr)}
+  .steps3 li{flex-wrap:wrap}
+  .fsteps span{font-size:.8rem}
+  .fsteps button{flex-direction:column;align-items:center;text-align:center;gap:4px;padding:6px 4px}
+  .tcl{grid-template-columns:minmax(0,1fr);padding-left:40px}
+  .fp-custom{grid-template-columns:1fr}
+  .fdrawer footer{gap:6px}
+  .fdrawer footer .btn{flex:1;justify-content:center;padding:9px 8px}
+  .fdrawer footer .btn.ghost{flex:0 0 auto}
+  .dc{min-height:46px;padding:4px}
+  .dc b{font-size:.8rem}
+  .ribbon.hourly .rcells{gap:3px}
+  .rc em{font-size:.62rem}
+  .hero .big b{font-size:3.2rem}
+  .tabbar a{min-height:52px;justify-content:center}
+  .tabbar a svg{width:22px;height:22px}
+  .st-tbl .stick{min-width:150px}
+  .flag-bar .btn{width:100%;justify-content:center}
+}
+@media (max-width:480px){
+  .kpi .kv{font-size:1.3rem}
+  .toolbar .exp-tools .btn{padding:8px}
+  .dcal{gap:3px}
+  .dc span{font-size:.68rem}
+}
+.tbl input[type=checkbox],.tbl input[type=radio]{width:18px;min-width:0;height:18px;padding:0;accent-color:var(--brand)}
+.ctbl td:nth-child(2){white-space:nowrap;min-width:130px}
+.ctbl td:nth-child(2) .xs{display:block}
+.mbody label.tck,.mbody label.opt,.mbody label.srch{display:flex;margin:0;gap:9px;align-items:center}
+.mbody label.tck{color:var(--ink)}
+.mbody .srch input{border:0!important;padding:8px 0!important;background:transparent!important}
+.mbody .fp-custom label{display:grid}
+.mbody .imp-u input{width:100%}

@@ -92,9 +92,14 @@ function pump() {
     _q.shift(); _active++; run(j);
   }
 }
+/** ข้อความบอกว่ากำลังทำอะไร (แสดงเมื่อรอเกิน 1.2 วินาที) */
+var ACT_LABEL = { getMonths: 'กำลังโหลดข้อมูลย้อนหลัง', getToday: 'กำลังโหลดยอดวันนี้', refreshNow: 'กำลังดึงยอดล่าสุดจาก HIS', bootstrap: 'กำลังเปิดระบบ', login: 'กำลังตรวจสอบรหัสผ่านกับ HIS',
+  getAdmin: 'กำลังโหลดหน้าตั้งค่า', checkHis: 'กำลังดึงจาก HIS เพื่อเทียบยอด (ประมาณ 10–40 วินาที)', resetData: 'กำลังตั้งคิวล้างและดึงใหม่', runBackfillNow: 'กำลังดึงข้อมูลย้อนหลัง (ไม่เกิน 1 นาที)',
+  getDayStatus: 'กำลังโหลดสถานะรายวัน', importClinicMap: 'กำลังบันทึกผังคลินิก', testApi: 'กำลังทดสอบ API ของไอที' };
 function run(j) {
-  var slow = setTimeout(function () { busy(true, 'กำลังรอเซิร์ฟเวอร์ Google…'); }, 3500);
-  var done = function () { clearTimeout(slow); _active--; busy(false); pump(); };
+  if (!j.bg) progress(1);
+  var slow = j.bg ? null : setTimeout(function () { busy(true, (ACT_LABEL[j.action] || (/^save|^delete|^import/.test(j.action) ? 'กำลังบันทึก' : 'กำลังทำงาน')) + '…'); slow = 'on'; }, 1200);
+  var done = function () { if (slow === 'on') busy(false); else clearTimeout(slow); if (!j.bg) progress(-1); _active--; pump(); };
   var p = DEMO ? MOCK.rpc(j.action, S.token, j.payload)
     : fetch(window.API_URL, { method: 'POST', body: JSON.stringify({ action: j.action, token: S.token, payload: j.payload }), credentials: 'omit', redirect: 'follow' })
       .then(function (r) { return r.text(); })
@@ -111,6 +116,9 @@ function run(j) {
     j.rej(new Error(e && e.message === 'BUSY' ? 'เซิร์ฟเวอร์ Google ไม่ว่างชั่วคราว กรุณาลองอีกครั้ง' : 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง'));
   });
 }
+/** แถบความคืบหน้าบางด้านบนจอ — ขึ้นทันทีทุกครั้งที่รอเซิร์ฟเวอร์ (ไม่ให้รู้สึกว่าระบบค้าง) */
+var _progN = 0;
+function progress(d) { _progN = Math.max(0, _progN + d); var p = U.$('#topProg'); if (p) p.classList.toggle('on', _progN > 0); }
 var _busyN = 0;
 function busy(on, msg) {
   _busyN = Math.max(0, _busyN + (on ? 1 : -1));
@@ -175,6 +183,24 @@ var UI = {
   },
   _out: function (e) { if (UI._pop && !UI._pop.contains(e.target)) UI.closePop(); },
   closePop: function () { if (UI._pop) { UI._pop.remove(); UI._pop = null; } document.removeEventListener('mousedown', UI._out); },
+  /** ปุ่มกำลังทำงาน: ปิดปุ่ม + หมุน + ข้อความ จน promise จบ → คืนค่าเดิม */
+  busyBtn: function (btn, p, label) {
+    if (!btn) return p;
+    var html = btn.innerHTML, dis = btn.disabled;
+    btn.disabled = true; btn.classList.add('is-busy'); btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<i class="spin-i"></i><span>' + (label || 'กำลังทำงาน…') + '</span>';
+    var back = function () { if (!btn.isConnected) return; btn.innerHTML = html; btn.disabled = dis; btn.classList.remove('is-busy'); btn.removeAttribute('aria-busy'); };
+    return Promise.resolve(p).then(function (r) { back(); return r; }, function (e) { back(); throw e; });
+  },
+  /** สถานะกำลังโหลดของหน้า: มีเนื้อหาเดิม = จางลง + ป้ายกำลังคำนวณ (ไม่กระตุก) · ยังไม่มี = กล่องโหลด */
+  loading: function (root, msg) {
+    if (root.querySelector('.kpis, .card, .tv-body, .st-steps')) {
+      root.classList.add('is-loading');
+      var o = root.querySelector(':scope > .ld-over'); if (!o) { o = U.el('<div class="ld-over" role="status"><i class="spin-i"></i><span></span></div>'); root.prepend(o); }
+      o.querySelector('span').textContent = msg || 'กำลังคำนวณ…';
+    } else root.innerHTML = '<div class="loading-block" role="status"><div class="ld-rib"></div><p>' + U.esc(msg || 'กำลังโหลด…') + '</p></div>';
+  },
+  doneLoading: function (root) { root.classList.remove('is-loading'); var o = root.querySelector(':scope > .ld-over'); if (o) o.remove(); },
   /** ปุ่ม ⓘ อธิบายตัวเลข */
   info: function (key) { return '<button class="info-btn" data-help="' + key + '" aria-label="คำอธิบาย">i</button>'; }
 };
@@ -214,7 +240,14 @@ var ICON = {
   search: svg('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>'),
   drag: svg('<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>'),
   expand: svg('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
-  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')
+  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  sideL: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 10l-2 2 2 2"/>'),
+  sideR: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M13 10l2 2-2 2"/>'),
+  broom: svg('<path d="M14 4l6 6M10.5 7.5l6 6M4 20c1-4 3-6.5 6.5-8.5l2 2C10.5 17 8 19 4 20z"/>'),
+  menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
+  check: svg('<path d="M5 12.5l4.2 4.2L19 7"/>'),
+  upload: svg('<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>'),
+  db: svg('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>')
 };
 
 /* ---------------- เมนู ---------------- */
@@ -236,28 +269,50 @@ function renderShell() {
   document.body.innerHTML =
     '<div class="shell">' +
     '<aside class="rail" aria-label="เมนูหลัก">' +
-    '<a class="brand" href="#/live"><img src="logo-hospital.png" alt="" width="34" height="34"><span><b>OPD Flow</b><small>ยอดผู้ป่วยนอกทั้งโรงพยาบาล</small></span></a>' +
-    '<nav>' + nav.map(function (p) { return '<a href="#/' + p.id + '" data-page="' + p.id + '">' + ICON[p.icon] + '<span>' + p.name + '</span></a>'; }).join('') + '</nav>' +
+    '<div class="rail-top"><a class="brand" href="#/live" title="OPD Flow"><img src="logo-hospital.png" alt="" width="34" height="34"><span><b>OPD Flow</b><small>ยอดผู้ป่วยนอกทั้งโรงพยาบาล</small></span></a>' +
+    '<button class="icon-btn rail-tog" id="railTog" aria-label="ย่อ/ขยายแถบเมนู" title="ย่อ/ขยายแถบเมนู"></button></div>' +
+    '<nav>' + nav.map(function (p) { return '<a href="#/' + p.id + '" data-page="' + p.id + '" title="' + p.name + '">' + ICON[p.icon] + '<span>' + p.name + '</span></a>'; }).join('') + '</nav>' +
     '<div class="rail-foot"><div class="me"><b>' + U.esc(me.name) + '</b><small>' + U.esc(me.emp) + ' · ' + (isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน') + '</small></div>' +
-    '<div class="rail-act"><button class="icon-btn" id="themeBtn" aria-label="สลับโหมดสว่าง/มืด">' + ICON.moon + '</button><button class="icon-btn" id="logoutBtn" aria-label="ออกจากระบบ">' + ICON.out + '</button></div>' +
+    '<div class="rail-act"><button class="icon-btn" id="themeBtn" aria-label="สลับโหมดสว่าง/มืด" title="สลับโหมดสว่าง/มืด">' + ICON.moon + '</button>' +
+    '<button class="icon-btn" id="cacheBtn" aria-label="ล้างข้อมูลที่จำไว้ในเครื่องนี้" title="ล้างข้อมูลที่จำไว้ในเครื่องนี้ แล้วโหลดใหม่">' + ICON.broom + '</button>' +
+    '<button class="icon-btn" id="logoutBtn" aria-label="ออกจากระบบ" title="ออกจากระบบ">' + ICON.out + '</button></div>' +
     '<small class="ver">รุ่น ' + FRONT_BUILD + (DEMO ? ' · สาธิต' : '') + '</small></div>' +
-    '</aside>' +
-    '<div class="main">' +
+    '</aside><div class="scrim" id="scrim"></div>' +
+    '<div class="main"><div class="tprog" id="topProg" aria-hidden="true"></div>' +
     (DEMO ? '<div class="demo-bar" id="demoBar"></div>' : '') +
-    '<header class="top"><button class="icon-btn menu-btn" id="menuBtn" aria-label="เมนู">' + ICON.more + '</button><h1 id="pageTitle"></h1><div class="top-tools" id="topTools"></div>' +
-    '<div class="sync" id="sync"></div><button class="icon-btn bell" id="bellBtn" aria-label="การแจ้งเตือน">' + ICON.bell + '<i id="bellN" hidden></i></button></header>' +
+    '<header class="top"><button class="icon-btn menu-btn" id="menuBtn" aria-label="เปิดเมนู">' + ICON.menu + '</button><h1 id="pageTitle"></h1>' +
+    '<div class="sync" id="sync"></div><button class="icon-btn bell" id="bellBtn" aria-label="การแจ้งเตือน" title="การแจ้งเตือน">' + ICON.bell + '<i id="bellN" hidden></i></button></header>' +
+    '<div class="toolbar" id="topTools"></div>' +
     '<main id="page" tabindex="-1"></main>' +
     '</div>' +
-    '<nav class="tabbar" aria-label="เมนูด่วน">' + ['live', 'explore', 'heat', 'forecast', 'staff'].map(function (id) { var p = PAGES.filter(function (x) { return x.id === id; })[0]; return '<a href="#/' + id + '" data-page="' + id + '">' + ICON[p.icon] + '<span>' + p.short + '</span></a>'; }).join('') + '</nav>' +
+    '<nav class="tabbar" aria-label="เมนูด่วน">' + ['live', 'explore', 'heat', 'staff'].map(function (id) { var p = PAGES.filter(function (x) { return x.id === id; })[0]; return '<a href="#/' + id + '" data-page="' + id + '">' + ICON[p.icon] + '<span>' + p.short + '</span></a>'; }).join('') +
+    '<a href="#" id="tabMore">' + ICON.menu + '<span>เมนูอื่น</span></a></nav>' +
     '</div><div id="toasts" aria-live="polite"></div><div id="busy" class="busy" hidden><i></i><span>กำลังโหลด…</span></div>';
   U.$('#themeBtn').onclick = toggleTheme;
   U.$('#logoutBtn').onclick = function () { UI.confirm('ออกจากระบบ', 'ต้องการออกจากระบบใช่ไหม', 'ออกจากระบบ').then(function (y) { if (y) logout(); }); };
-  U.$('#menuBtn').onclick = function () { document.body.classList.toggle('rail-open'); };
+  U.$('#cacheBtn').onclick = function () { UI.confirm('ล้างข้อมูลในเครื่องนี้', 'ระบบจะลบยอดที่จำไว้ในเบราว์เซอร์นี้ แล้วโหลดใหม่จากเซิร์ฟเวอร์ทั้งหมด (ใช้เมื่อสงสัยว่ายอดบนจอไม่ตรง/ไม่อัปเดต) · ไม่กระทบข้อมูลของคนอื่น', 'ล้างและโหลดใหม่').then(function (y) { if (y) clearLocalData(); }); };
+  var openRail = function (on) { document.body.classList.toggle('rail-open', on); };
+  U.$('#menuBtn').onclick = function () { openRail(!document.body.classList.contains('rail-open')); };
+  U.$('#tabMore').onclick = function (e) { e.preventDefault(); openRail(true); };
+  U.$('#scrim').onclick = function () { openRail(false); };
+  U.$('#railTog').onclick = function () { var on = !document.body.classList.contains('rail-mini'); STORE.set('railMini', on); paintRail(); setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 260); };
   U.$('#bellBtn').onclick = function () { if (window.ALERTS) ALERTS.showList(U.$('#bellBtn')); };
-  U.$('.rail nav').addEventListener('click', function () { document.body.classList.remove('rail-open'); });
+  U.$('.rail nav').addEventListener('click', function () { openRail(false); });
+  paintRail();
   paintTheme();
   if (DEMO && window.MOCK) MOCK.renderBar();
   SYNC.paint();
+}
+/** แถบเมนูด้านข้าง: ย่อ (ไอคอน) / ขยาย · จำค่าต่อเครื่อง · จอแท็บเล็ตแนวนอนตั้งต้นเป็นแบบย่อ */
+function paintRail() {
+  var pref = STORE.get('railMini', null), mini = pref == null ? (innerWidth > 900 && innerWidth < 1280) : !!pref;
+  document.body.classList.toggle('rail-mini', mini);
+  var b = U.$('#railTog'); if (b) { b.innerHTML = mini ? ICON.sideR : ICON.sideL; b.setAttribute('aria-expanded', String(!mini)); b.title = mini ? 'ขยายแถบเมนู' : 'ย่อแถบเมนู'; }
+}
+/** ล้างยอดที่จำไว้ในเครื่อง (IndexedDB + ตัวกรองค้าง) แล้วโหลดใหม่ */
+function clearLocalData() {
+  busy(true, 'กำลังล้างข้อมูลในเครื่อง…');
+  IDB.clear().then(function () { STORE.del('u:' + S.me.emp + ':filt'); try { sessionStorage.clear(); } catch (e) { } location.reload(); });
 }
 function go(page) { location.hash = '#/' + page; }
 function route() {
@@ -270,8 +325,10 @@ function route() {
   U.$$('[data-page]').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-page') === h); a.setAttribute('aria-current', a.getAttribute('data-page') === h ? 'page' : 'false'); });
   U.$('#pageTitle').textContent = pg.name;
   U.$('#topTools').innerHTML = '';
+  document.body.classList.remove('rail-open');
   UI.closePop();
   if (window.CH) CH.disposeAll();
+  if (window.FUI) FUI._pc = null;
   // สร้างกล่องหน้าใหม่ทุกครั้ง: งานโหลดของหน้าเก่าที่ตอบช้าจะวาดลงกล่องเดิมที่หลุดจากจอแล้ว ไม่ทับหน้าใหม่
   var old = U.$('#page'), root = document.createElement('main'); root.id = 'page'; root.tabIndex = -1; root.className = 'pg-' + h;
   old.parentNode.replaceChild(root, old); window.scrollTo(0, 0);
@@ -292,7 +349,12 @@ function toggleTheme() { STORE.set('theme', isDark() ? 'light' : 'dark'); paintT
 /* ---------------- สถานะการดึงข้อมูล (มุมขวาบน) ---------------- */
 var SYNC = {
   st: null, timer: null,
-  set: function (st) { SYNC.st = st; SYNC.paint(); },
+  set: function (st) {
+    var pv0 = (SYNC.st || (S.boot && S.boot.status) || {}).packVer;
+    SYNC.st = st; SYNC.paint();
+    // แอดมินล้าง/ดึงข้อมูลใหม่ → เลขรุ่นข้อมูลเปลี่ยน → ทุกเครื่องทิ้งแคชเดือนเดิม โหลดใหม่เอง
+    if (st && st.packVer && pv0 && st.packVer !== pv0 && window.D) { D.LM = {}; if (S.boot && S.boot.status) S.boot.status.packVer = st.packVer; }
+  },
   paint: function () {
     var el = U.$('#sync'); if (!el) return;
     var st = SYNC.st || (S.boot && S.boot.status) || {};
@@ -303,13 +365,13 @@ var SYNC = {
     U.$('#syncBtn').onclick = SYNC.now;
   },
   now: function () {
-    var b = U.$('#syncBtn'); if (b) b.classList.add('spin');
+    var b = U.$('#syncBtn'); if (b) { b.classList.add('spin'); b.disabled = true; var sm = b.querySelector('small'); if (sm) sm.textContent = 'กำลังดึงจาก HIS…'; }
     return api('refreshNow', {}).then(function (r) {
       SYNC.set(r.status);
       D.invalidateToday();
       UI.toast('ดึงข้อมูลล่าสุดแล้ว · วันนี้ ' + U.fmt(r.todayTotal) + ' ราย', 'ok');
       if (S.page !== 'admin' && S.page !== 'help') route();
-    }).catch(function (e) { UI.toast(e.message, 'bad'); }).then(function () { var b2 = U.$('#syncBtn'); if (b2) b2.classList.remove('spin'); });
+    }).catch(function (e) { UI.toast(e.message, 'bad'); SYNC.paint(); }).then(function () { var b2 = U.$('#syncBtn'); if (b2) { b2.classList.remove('spin'); b2.disabled = false; } });
   },
   /** ถามเลขรุ่นแบบเบาทุก 60 วิ ขณะเปิดหน้าจออยู่ → มีข้อมูลใหม่ค่อยวาดใหม่ */
   start: function () {

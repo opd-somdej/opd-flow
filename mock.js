@@ -11,32 +11,24 @@ var MOCK = (function () {
   var ST = load();
 
   function defaults() {
-    var clinics = SEED_CLINICS.map(function (c, i) { return { i: i, code: c[0], name: c[1], type: c[2], bld: c[3], floor: c[4], grp: c[5], show: c[6], g: {}, note: '' }; });
-    // ตัวอย่างกลุ่มกำหนดเอง: เขตรับผิดชอบของผู้ตรวจการพยาบาล (สมมติ — แอดมินจัดใหม่ได้)
-    var G = { id: 'nurse', name: 'เขตผู้ตรวจการพยาบาล (ตัวอย่าง)', groups: [
-      { id: 'OPD1', name: 'งานผู้ป่วยนอก 1 · อาคาร 150 ปี ชั้น 1–5', order: 0 },
-      { id: 'OPD2', name: 'งานผู้ป่วยนอก 2 · อาคาร 150 ปี ชั้น 6 ขึ้นไป', order: 1 },
-      { id: 'OT', name: 'คลินิกนอกเวลา/พิเศษ', order: 2 },
-      { id: 'BR', name: 'ศูนย์บริการสุขภาพสาขา', order: 3 },
-      { id: 'OTH', name: 'ตึกอื่น ๆ / ศูนย์ผู้สูงอายุ', order: 4 }] };
-    clinics.forEach(function (c) {
-      var f = +c.floor || 0;
-      c.g.nurse = /นอกเวลา/.test(c.type) ? 'OT' : /สาขา/.test(c.bld) ? 'BR' : /150 ปี/.test(c.bld) ? (f && f <= 5 ? 'OPD1' : 'OPD2') : 'OTH';
-    });
+    var clinics = SEED_CLINICS.map(function (c, i) { return { i: i, code: c[0], name: c[1], type: c[2], bld: c[3], floor: c[4], grp: c[5], show: 0, g: {}, note: '', unit: '', zone: '', mapped: 0, gen: c[6] }; });
+    // ผังหน่วยงาน › โซน (ประชุม 23 ต.ค. 69) — คลินิกที่ไม่อยู่ในผัง = ยังไม่จัดกลุ่ม ไม่นับ
+    var byCode = {}; clinics.forEach(function (c) { byCode[c.code] = c; });
+    SEED_MAP.forEach(function (m) { var c = byCode[m[0]]; if (!c) return; c.name = m[1]; c.type = m[2]; c.bld = m[3]; c.floor = m[4]; c.grp = m[5]; c.unit = m[6]; c.zone = m[7]; c.mapped = 1; c.show = 1; c.gen = 1; });
     return {
       clinics: clinics,
       pts: SEED_PTTYPES.map(function (p, i) { return { i: i, name: p[0], grp: p[1] }; }),
       ptGroups: SEED_PTGROUPS.map(function (g, i) { return { id: g[0], name: g[1], order: i }; }),
-      groupings: [G],
+      groupings: [],
       holidays: HOL,
       users: [
         { emp: '1000001', name: 'ผู้ดูแลระบบ (ตัวอย่าง)', role: 'admin', scope: [], active: 1, note: 'บัญชีตัวอย่างในโหมดสาธิต' },
-        { emp: '1000002', name: 'หัวหน้าหอ (ตัวอย่าง)', role: 'viewer', scope: [{ dim: 'g:nurse', val: 'OPD1' }], active: 1, note: 'เห็นเฉพาะงานผู้ป่วยนอก 1' }
+        { emp: '1000002', name: 'หัวหน้าหอ OPD 1 (ตัวอย่าง)', role: 'viewer', scope: [{ dim: 'unit', val: SEED_UNITS[0][0] }], active: 1, note: 'เห็นเฉพาะหอผู้ป่วยคลินิกอายุรกรรม (OPD 1)' }
       ],
       settings: {
         orgName: 'โรงพยาบาลสมเด็จพระบรมราชเทวี ณ ศรีราชา',
         fetchEvery: 30, fetchFrom: '05:00', fetchTo: '22:00', nightlyAt: 2, recheckDays: 3, backfillFrom: '2023-10-01',
-        slotView: 30, staffDim: 'grp', nhppd: { 'default': 0.2 }, actual: {}, hoursPerDay: 7, relief: 1.2, weekFactor: 1.4, onDutyHours: 8,
+        slotView: 30, timeRes: 60, staff: { nh: { 'default': 0.2 }, act: {}, hours: 7, relief: 1.2, dwell: 2 }, orgMap: { units: SEED_UNITS, at: '2569-10-27', by: 'ผังตั้งต้น', n: SEED_MAP.length },
         alerts: [
           { id: 'a1', dim: 'all', val: '', metric: 'vsExp', thr: 30, min: 40, on: 1, note: 'ทั้ง รพ. มาก่อนคาด ≥30%' },
           { id: 'a2', dim: 'clinic', val: '', metric: 'last60', thr: 60, on: 1, note: 'คลินิกใดมี ≥60 รายใน 1 ชม.' }
@@ -44,12 +36,12 @@ var MOCK = (function () {
         tv: { key: 'tv-demo-150', rotate: 20, title: 'สถานการณ์ผู้ป่วยนอกวันนี้' },
         api: { url: 'https://www.thaimed.net/api/new/', report: 'get_visit', style: 'new', mode: 'mock', map: {} }
       },
-      log: [], audit: [], bf: null, ver: 2
+      log: [], audit: [], bf: null, ver: 3, reset: null, fetchedAt: {}
     };
   }
-  function load() { var s = null; try { s = JSON.parse(localStorage.getItem('opd:demoState') || 'null'); } catch (e) { } if (!s || s.ver !== 2) s = defaults(); return s; }
+  function load() { var s = null; try { s = JSON.parse(localStorage.getItem('opd:demoState') || 'null'); } catch (e) { } if (!s || s.ver !== 3) s = defaults(); return s; }
   function save() { try { localStorage.setItem('opd:demoState', JSON.stringify(ST)); } catch (e) { } }
-  function seedRows() { return ST.clinics.map(function (c) { return [c.code, c.name, c.type, c.bld, c.floor, c.grp, c.show]; }); }
+  function seedRows() { return ST.clinics.map(function (c) { return [c.code, c.name, c.type, c.bld, c.floor, c.grp, c.gen == null ? c.show : c.gen]; }); }
 
   /* ---------- เวลา/การดึง ---------- */
   function clock() { return nowBkk(); }
@@ -64,7 +56,7 @@ var MOCK = (function () {
     if (nx > toMin(ST.settings.fetchTo)) nx = null;
     return {
       lastFetchAt: lf == null ? stamp(U.addDays(n.iso, -1), toMin(ST.settings.fetchTo)) : stamp(n.iso, lf), nextFetchAt: nx == null ? '' : stamp(n.iso, nx),
-      lastError: '', packVer: 'demo1', firstDate: '2023-10-01', apiMode: 'mock', rowsToday: 0
+      lastError: '', packVer: 'demo1', firstDate: '2023-10-01', apiMode: 'mock', rowsToday: 0, apptTime: true
     };
   }
   function dayData(iso, upto) {
@@ -84,7 +76,7 @@ var MOCK = (function () {
       var up = iso === n.iso ? todayUpto() : null;
       if (up === -1) return;
       var x = dayData(iso, up);
-      days[iso] = part === 'd' ? encD(x, iso === n.iso ? status().lastFetchAt : iso + ' 23:59:00') : e36(x.sl);
+      days[iso] = part === 'd' ? encD(x, iso === n.iso ? status().lastFetchAt : (ST.fetchedAt[iso] || iso + ' 23:59:00')) : e36(x.sl);
     });
     return { ym: ym, fin: fin, days: days };
   }
@@ -141,7 +133,8 @@ var MOCK = (function () {
       needAdmin(u);
       (p.list || []).forEach(function (c) {
         var cur = ST.clinics[c.i]; if (!cur) return;
-        ['name', 'type', 'bld', 'floor', 'grp', 'show', 'note'].forEach(function (k) { if (c[k] !== undefined) cur[k] = c[k]; });
+        ['name', 'type', 'bld', 'floor', 'grp', 'show', 'note', 'unit', 'zone'].forEach(function (k) { if (c[k] !== undefined) cur[k] = c[k]; });
+        if (c.unit !== undefined) { cur.mapped = c.unit ? 1 : 0; cur.show = cur.mapped; if (!c.unit) cur.zone = ''; }
         if (c.g) Object.keys(c.g).forEach(function (k) { if (c.g[k]) cur.g[k] = c.g[k]; else delete cur.g[k]; });
       });
       audit(u, 'แก้ผังคลินิก', (p.list || []).length + ' คลินิก'); save();
@@ -191,14 +184,62 @@ var MOCK = (function () {
       var rows = MG.apiRows(d, seedRows(), PTN, HOLX(), hm);
       return { ok: true, ms: 1400 + Math.round(Math.random() * 600), count: rows.length, sample: rows.slice(0, 8), total: rows.reduce(function (s, r) { return s + r.total_visit; }, 0), fields: Object.keys(rows[0] || {}), note: 'โหมดสาธิต: ข้อมูลจำลองตามรูปแบบที่คุยกับไอที' };
     },
-    startBackfill: function (p, u) { needAdmin(u); ST.bf = { from: p.from, to: p.to, done: 0, total: U.diff(p.from, p.to) + 1, at: stamp(clock().iso, clock().min), state: 'running' }; save(); return { bf: ST.bf }; },
+    startBackfill: function (p, u) { needAdmin(u); ST.bf = { from: p.from, to: p.to, cur: p.from, done: 0, total: U.diff(p.from, p.to) + 1, at: stamp(clock().iso, clock().min), state: 'running' }; save(); return { bf: ST.bf }; },
     getBackfill: function (p, u) {
       needAdmin(u);
-      if (ST.bf && ST.bf.state === 'running') { ST.bf.done = Math.min(ST.bf.total, ST.bf.done + 40 + Math.round(Math.random() * 30)); if (ST.bf.done >= ST.bf.total) ST.bf.state = 'done'; save(); }
+      if (ST.bf && ST.bf.state === 'running') { var k = 25, at = stamp(clock().iso, clock().min) + ':10'; while (k-- > 0 && ST.bf.cur && ST.bf.cur <= ST.bf.to) { ST.fetchedAt[ST.bf.cur] = at; ST.bf.cur = U.addDays(ST.bf.cur, 1); ST.bf.done++; } if (!ST.bf.cur || ST.bf.cur > ST.bf.to) ST.bf.state = 'done'; save(); }
       return { bf: ST.bf };
     },
     stopBackfill: function (p, u) { needAdmin(u); if (ST.bf) ST.bf.state = 'stopped'; save(); return { bf: ST.bf }; },
-    resetDemo: function () { ST = defaults(); save(); cache = {}; return {}; }
+    resetDemo: function () { ST = defaults(); save(); cache = {}; return {}; },
+    /* ---- รุ่น 27 ต.ค. 69 ---- */
+    importClinicMap: function (p, u) {
+      needAdmin(u);
+      var inMap = {}, n = { upd: 0, add: 0, off: 0, total: (p.rows || []).length };
+      (p.rows || []).forEach(function (r) { inMap[r.code] = r; });
+      ST.clinics.forEach(function (c) { var r = inMap[c.code]; if (r) { if (c.unit !== r.unit || c.zone !== r.zone) n.upd++; Object.assign(c, { name: r.name || c.name, type: r.type, bld: r.bld, floor: r.floor, grp: r.grp, unit: r.unit, zone: r.zone, mapped: 1, show: 1 }); } else if (c.unit) { c.unit = ''; c.zone = ''; c.mapped = 0; c.show = 0; n.off++; } });
+      ST.settings.orgMap = { units: p.units || [], at: stamp(clock().iso, clock().min), by: u.emp, n: n.total };
+      audit(u, 'ใช้ผังหน่วยงาน/โซน/คลินิก', 'แก้ ' + n.upd); save(); cache = {};
+      return { n: n, clinics: ST.clinics, settings: ST.settings };
+    },
+    getDayStatus: function (p, u) {
+      needAdmin(u);
+      var out = {}, n = clock(), up = todayUpto();
+      U.dates(p.from, p.to).forEach(function (d) { if (d > n.iso || d < '2023-10-01') return; if (ST.reset && ST.reset.wipe && d >= ST.reset.from && d <= ST.reset.to && !ST.fetchedAt[d]) return; if (d === n.iso && up === -1) return; var x = dayData(d, d === n.iso ? up : null); out[d] = [x.n, d === n.iso ? status().lastFetchAt : (ST.fetchedAt[d] || d + ' 23:59:00')]; });
+      return { from: p.from, to: p.to, days: out, reset: ST.reset, bf: ST.bf, status: status() };
+    },
+    resetData: function (p, u) {
+      needAdmin(u);
+      var n = clock(), last = p.to >= n.iso ? U.addDays(n.iso, -1) : p.to;
+      ST.reset = { from: p.from, to: p.to > n.iso ? n.iso : p.to, at: stamp(n.iso, n.min) + ':00', by: u.emp, wipe: !!p.wipe };
+      U.dates(p.from, p.to).forEach(function (d) { delete ST.fetchedAt[d]; });
+      ST.bf = p.from <= last ? { from: p.from, to: last, cur: p.from, done: 0, total: U.diff(p.from, last) + 1, at: ST.reset.at, state: 'running', kind: 'reset' } : null;
+      audit(u, 'ล้างและดึงข้อมูลใหม่', p.from + ' – ' + p.to); save();
+      return { bf: ST.bf, status: status(), reset: ST.reset };
+    },
+    runBackfillNow: function (p, u) {
+      needAdmin(u);
+      var b = ST.bf; if (b && b.state === 'running') { var k = 0, at = stamp(clock().iso, clock().min) + ':30'; while (b.cur <= b.to && k < 60) { ST.fetchedAt[b.cur] = at; b.cur = U.addDays(b.cur, 1); b.done++; k++; } if (b.cur > b.to) b.state = 'done'; save(); }
+      return { bf: ST.bf, status: status() };
+    },
+    checkHis: function (p, u) {
+      needAdmin(u);
+      var d = p.date, n = clock(), x = dayData(d, d === n.iso ? todayUpto() : null), rows = [];
+      for (var i = 0; i < x.cl.length; i += 4) { var c = ST.clinics[x.cl[i]]; if (!c || (p.clinic && c.code !== p.clinic)) continue; rows.push({ code: c.code, name: c.name, unit: c.unit, mapped: c.mapped, api: x.cl[i + 1], apiA: x.cl[i + 2], apiW: x.cl[i + 3], stored: x.cl[i + 1], storedA: x.cl[i + 2], storedW: x.cl[i + 3] }); }
+      rows.sort(function (a, b) { return b.api - a.api; });
+      var t = rows.reduce(function (s, r) { return s + r.api; }, 0);
+      return { ok: true, date: d, clinic: p.clinic || '', ms: 9800, raw: Math.round(t * 1.04), cancelled: Math.round(t * 0.035), dup: Math.round(t * 0.005), apptTime: true, fields: ['YYYYMMDDHHMMSS', 'HN', 'VN', 'CLINIC', 'PTTYPE_MAIN', 'CANCEL_BY', 'CHECK_APPOINT', 'CHECK_WALKIN'], apiTotal: t, storedTotal: t, storedAt: d + ' 23:59:00', rows: rows, fixed: !!p.fix };
+    },
+    saveStaff: function (p, u) {
+      var st = ST.settings.staff || (ST.settings.staff = { nh: { 'default': 0.2 }, act: {}, hours: 7, relief: 1.2, dwell: 2 });
+      var units = {}; (u.scope || []).forEach(function (s) { if (s.dim === 'unit') units[s.val] = 1; });
+      var ok = function (z) { if (u.role === 'admin') return true; return ST.clinics.some(function (c) { return c.zone === z && units[c.unit]; }); };
+      if (p.base && u.role !== 'admin') throw new Error('ค่ากลาง (ชม.ทำงาน/ค่าเผื่อลา) แก้ได้เฉพาะผู้ดูแลระบบ');
+      ['act', 'nh'].forEach(function (k) { Object.keys(p[k] || {}).forEach(function (z) { if (!ok(z)) throw new Error('แก้ได้เฉพาะโซนในหน่วยงานของคุณ (' + z + ')'); var v = p[k][z]; if (v === '' || v == null) delete st[k][z]; else st[k][z] = +v; }); });
+      if (p.base) { if (p.base.hours) st.hours = +p.base.hours; if (p.base.relief) st.relief = +p.base.relief; if (p.base.dwell) st.dwell = +p.base.dwell; if (p.base.nhDefault) st.nh['default'] = +p.base.nhDefault; }
+      audit(u, 'บันทึกอัตรากำลัง', ''); save();
+      return { staff: st };
+    }
   };
 
   function rpc(action, token, payload) {

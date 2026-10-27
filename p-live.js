@@ -45,21 +45,22 @@ var LIVE = {
 };
 
 PAGE_FN.live = function (root) {
-  var tools = U.$('#topTools'), dim = 'grp';
-  FUI.bar(tools, function () { draw(); });
-  dim = FUI.dimSelect(tools, 'liveDim', 'floor', function (d) { dim = d; draw(); });
+  var tools = U.$('#topTools'), dim = 'unit';
+  FUI.bar(tools, function () { redraw(); });
+  dim = FUI.dimSelect(tools, 'liveDim2', 'unit', function (d) { dim = d; redraw(); });
   EXP.toolbar(tools, { title: 'สถานการณ์ผู้ป่วยนอกวันนี้' });
-  root.innerHTML = '<div class="loading-block"><div class="ld-rib"></div><p>กำลังโหลดยอดวันนี้…</p></div>';
+  function redraw() { UI.loading(root, 'กำลังคำนวณ…'); setTimeout(function () { draw(); }, 30); }
+  UI.loading(root, 'กำลังโหลดยอดวันนี้…');
   var t = nowBkk().iso;
-  Promise.all([D.loadToday(), D.ensure(U.addDays(t, -56), U.addDays(t, -1), true)]).then(function () { ALERTS.evaluate(); draw(true); }).catch(function (e) { root.innerHTML = '<div class="empty"><b>โหลดยอดวันนี้ไม่สำเร็จ</b><p>' + U.esc(e.message) + '</p><button class="btn primary" onclick="route()">ลองอีกครั้ง</button></div>'; });
+  Promise.all([D.loadToday(), D.ensure(U.addDays(t, -56), U.addDays(t, -1), true)]).then(function () { ALERTS.evaluate(); draw(true); }).catch(function (e) { UI.doneLoading(root); root.innerHTML = '<div class="empty"><b>โหลดยอดวันนี้ไม่สำเร็จ</b><p>' + U.esc(e.message) + '</p><button class="btn primary" onclick="route()">ลองอีกครั้ง</button></div>'; });
 
   function draw(first) {
-    CH.disposeAll();
-    var L = LIVE.compute(), n = nowBkk();
+    CH.disposeAll(); UI.doneLoading(root);
+    var L = LIVE.compute(), n = nowBkk(), st = TR.step(), res = TR.res();
     var ap = L.R.v ? L.R.a / L.R.v : null, lwD = L.lwNow ? L.R.v / L.lwNow - 1 : null;
     var dtNote = L.dt === 'W' ? '' : '<span class="tag">' + D.DT[L.dt] + (D.hol[L.t] ? ' · ' + U.esc(D.hol[L.t]) : '') + '</span>';
     var noData = L.nowSlot < 0 || !L.R.v;
-    root.innerHTML =
+    root.innerHTML = UNMAPPED.banner() +
       '<section class="hero">' +
       '<div class="hero-main"><p class="eyebrow">' + U.thDate(L.t, { dow: true, full: true }) + ' ' + dtNote + '</p>' +
       '<div class="big"><b data-count="' + Math.round(L.R.v) + '">' + U.fmt(L.R.v) + '</b><span>ราย<br>ถึง ' + (L.lf || '–') + ' น.</span></div>' +
@@ -70,14 +71,18 @@ PAGE_FN.live = function (root) {
       kpi({ label: 'มาตามนัด', value: ap == null ? '–' : U.share(ap, 0), sub: 'walk-in ' + (ap == null ? '–' : U.share(1 - ap, 0)) + ' · ' + U.fmt(L.R.w) + ' ราย', help: 'appoint' }) +
       kpi({ label: 'ถึงตอนนี้เทียบปกติ', value: L.cumE ? U.pct(L.R.v / L.cumE - 1, 0) : '–', sub: 'ปกติถึงเวลานี้ ≈ ' + U.fmt(L.cumE), help: 'vsnormal', cls: L.cumE && L.R.v / L.cumE - 1 > 0.25 ? 'hot' : '' }) +
       '</div></section>' +
-      '<section class="card rib-card"><header class="ch"><div><h2>แถบเวลาวันนี้' + UI.info('ribbon') + '</h2><p class="sub">ช่องละ 15 นาที · แท่งสูง/สีเข้ม = มาถึงมาก · กรอบเส้นประ = ช่วงที่ยังไม่ถึง (ปริมาณตามปกติ) · เส้นแดง = ตอนนี้</p></div><div class="rib-legend"><span>น้อย</span><i class="l1"></i><i class="l3"></i><i class="l5"></i><i class="l7"></i><i class="l9"></i><span>มาก</span></div></header><div id="rib"></div></section>' +
+      '<section class="card rib-card"><header class="ch"><div><h2>แถบเวลาวันนี้' + UI.info('ribbon') + '</h2><p class="sub">ช่องละ ' + TR.unit(res) + ' · แท่งสูง/สีเข้ม = มาถึงมาก · กรอบเส้นประ = ช่วงที่ยังไม่ถึง (ปริมาณตามปกติ) · เส้นแดง = ตอนนี้' + (TR.note() ? '<br><span class="note-i">ⓘ ' + TR.note() + '</span>' : '') + '</p></div><div class="rib-legend"><span>น้อย</span><i class="l1"></i><i class="l3"></i><i class="l5"></i><i class="l7"></i><i class="l9"></i><span>มาก</span></div></header><div id="rib"></div></section>' +
       '<div class="grid g-live"><div id="c1"></div><div id="c2"></div><div id="c3"></div><div id="c4"></div><div id="c5"></div><div id="c6"></div></div>';
-    ribbon(U.$('#rib', root), { act: L.act, exp: L.exp, now: L.nowSlot, from: 20, to: 87 });
+    ribbon(U.$('#rib', root), { act: L.act, exp: L.exp, now: L.nowSlot, from: 24, to: 87, vals: st >= 4 && innerWidth > 700 });
 
-    // 1) รายครึ่งชั่วโมง เทียบปกติ
+    // 1) รายช่วงเวลา (ตามความละเอียดที่ตั้ง) เทียบปกติ
     var x = [], a = [], e = [], wk = [];
-    for (var s = 20; s < 88; s += 2) { x.push(U.hhmm(s)); var past = s <= L.nowSlot; a.push(past ? L.act[s] + (s + 1 <= L.nowSlot ? L.act[s + 1] : 0) : null); e.push(Math.round(L.exp[s] + L.exp[s + 1])); wk.push(past ? L.R.bySlot[s * 2 + 1] + (s + 1 <= L.nowSlot ? L.R.bySlot[s * 2 + 3] : 0) : null); }
-    var c1 = CH.card(U.$('#c1', root), { title: 'มาถึงรายครึ่งชั่วโมง เทียบวันปกติ', help: 'halfhour', h: 280, cls: 'span2' });
+    for (var s = 24; s < 88; s += st) {
+      x.push(U.hhmm(s)); var past = s <= L.nowSlot, av = 0, ev = 0, wv = 0;
+      for (var k = 0; k < st; k++) { ev += L.exp[s + k] || 0; if (s + k <= L.nowSlot) { av += L.act[s + k] || 0; wv += L.R.bySlot[(s + k) * 2 + 1] || 0; } }
+      a.push(past ? av : null); e.push(Math.round(ev)); wk.push(past ? wv : null);
+    }
+    var c1 = CH.card(U.$('#c1', root), { title: 'มาถึงราย' + TR.unit(res) + ' เทียบวันปกติ', help: 'halfhour', h: 280, cls: 'span2' });
     c1.set(CH.line(c1.chartEl, { x: x, bars: true, series: [{ name: 'วันนี้', data: a, bar: true }, { name: 'ปกติ (เฉลี่ย 8 สัปดาห์)', data: e, color: CH.T().ink2, dash: true, width: 1.5, smooth: 0.3 }, { name: 'walk-in วันนี้', data: wk, color: CH.T().cat[1], width: 1.5, symbol: 'none' }] }));
     c1.setTable([{ h: 'ช่วงเวลา' }, { h: 'วันนี้', num: 1 }, { h: 'walk-in', num: 1 }, { h: 'ปกติ', num: 1 }], x.map(function (h, i) { return [h, a[i] == null ? '' : a[i], wk[i] == null ? '' : wk[i], e[i]]; }));
 
@@ -91,8 +96,8 @@ PAGE_FN.live = function (root) {
     // 3) ตามมิติที่เลือก
     var bd = LIVE.byDim(L, dim).sort(function (p, q) { return q.v - p.v; });
     var top = bd.slice(0, 14);
-    var c3 = CH.card(U.$('#c3', root), { title: 'วันนี้แยกตาม' + D.DIM[dim].short, sub: 'ตัวเลขในวงเล็บ = ปกติถึงเวลาเดียวกัน · กดแท่งเพื่อดูรายละเอียด', help: 'bydim', h: Math.max(260, top.length * 28 + 20) });
-    if (top.length) c3.set(CH.barsH(c3.chartEl, top.map(function (o) { return { label: o.label, title: o.title, v: o.v, e: o.e, key: o.key, color: o.e && o.v / o.e > 1.3 ? CH.T().serious : null }; }), { labelW: 210, lbl: function (r) { return U.fmt(r.v) + '  (' + U.fmt(r.e) + ')'; }, tip: function (r) { return 'วันนี้ ' + U.fmt(r.v) + ' ราย<br>ปกติถึงเวลานี้ ≈ ' + U.fmt(r.e) + (r.e ? '<br>' + U.pct(r.v / r.e - 1, 0) : ''); }, onClick: function (r) { DRILL.dim(dim, r.key); } }));
+    var c3 = CH.card(U.$('#c3', root), { title: 'วันนี้แยกตาม' + D.DIM[dim].short, sub: 'ตัวเลขในวงเล็บ = ปกติถึงเวลาเดียวกัน · แท่งสีแดง = มากกว่าปกติเกิน 30% · กดแท่งเพื่อดูรายละเอียด', help: 'bydim', h: Math.max(260, top.length * 28 + 20) });
+    if (top.length) c3.set(CH.barsH(c3.chartEl, top.map(function (o) { return { label: o.label, title: o.title, v: o.v, e: o.e, key: o.key, color: o.e && o.v / o.e > 1.3 ? CH.T().crit : null }; }), { labelW: 210, lbl: function (r) { return U.fmt(r.v) + '  (' + U.fmt(r.e) + ')'; }, tip: function (r) { return 'วันนี้ ' + U.fmt(r.v) + ' ราย<br>ปกติถึงเวลานี้ ≈ ' + U.fmt(r.e) + (r.e ? '<br>' + U.pct(r.v / r.e - 1, 0) : ''); }, onClick: function (r) { DRILL.dim(dim, r.key); } }));
     else c3.chartEl.innerHTML = '<div class="empty sm">ยังไม่มีข้อมูล</div>';
     c3.setTable([{ h: D.DIM[dim].short }, { h: 'วันนี้', num: 1 }, { h: 'ปกติถึงเวลานี้', num: 1 }, { h: '1 ชม.ล่าสุด', num: 1 }], bd.map(function (o) { return [o.title, o.v, Math.round(o.e), o.h]; }));
 
@@ -107,13 +112,12 @@ PAGE_FN.live = function (root) {
     U.$('#c5', root).appendChild(c5);
 
     // 6) heat: มิติ × ครึ่งชั่วโมง วันนี้
-    var hs = top.slice(0, 12), hx = [], hd = [];
-    for (s = 20; s < 88; s += 2) hx.push(U.hhmm(s));
+    var hs = top.slice(0, 12), hx = TR.labels(24, 87, st), hd = [];
     var keyIdx = {}; hs.forEach(function (o, i) { keyIdx[o.key] = i; });
     var cellv = hs.map(function () { return new Float64Array(hx.length); });
-    for (var ci = 0; ci < D.nC; ci++) { if (!L.K.cm[ci]) continue; var ki = keyIdx[D.val(dim, ci)]; if (ki == null) continue; for (s = 20; s < 88 && s <= L.nowSlot; s++) cellv[ki][(s - 20) >> 1] += L.R.cs[ci * NS + s]; }
-    hs.forEach(function (o, yi) { for (var xi = 0; xi < hx.length; xi++) if (20 + xi * 2 <= L.nowSlot) hd.push([xi, yi, cellv[yi][xi]]); });
-    var c6 = CH.card(U.$('#c6', root), { title: 'วันนี้: ' + D.DIM[dim].short + ' × ช่วงเวลา', sub: 'ครึ่งชั่วโมงละช่อง · เฉพาะ 12 อันดับแรก', help: 'heat', h: Math.max(260, hs.length * 26 + 80), cls: 'span3' });
+    for (var ci = 0; ci < D.nC; ci++) { if (!L.K.cm[ci]) continue; var ki = keyIdx[D.val(dim, ci)]; if (ki == null) continue; for (s = 24; s < 88 && s <= L.nowSlot; s++) cellv[ki][Math.floor((s - 24) / st)] += L.R.cs[ci * NS + s]; }
+    hs.forEach(function (o, yi) { for (var xi = 0; xi < hx.length; xi++) if (24 + xi * st <= L.nowSlot) hd.push([xi, yi, cellv[yi][xi]]); });
+    var c6 = CH.card(U.$('#c6', root), { title: 'วันนี้: ' + D.DIM[dim].short + ' × ช่วงเวลา', sub: 'ช่องละ ' + TR.unit(res) + ' · เฉพาะ 12 อันดับแรก', help: 'heat', h: Math.max(260, hs.length * 30 + 80), cls: 'span3' });
     if (hd.length) c6.set(CH.heat(c6.chartEl, { x: hx, y: hs.map(function (o) { return o.label; }), data: hd, labelW: 200, tip: function (d) { return '<b>' + U.esc(hs[d[1]].title) + '</b><br>' + hx[d[0]] + ' น. · ' + U.fmt(d[2]) + ' ราย'; } }));
     else c6.chartEl.innerHTML = '<div class="empty sm">ยังไม่มีข้อมูลวันนี้</div>';
     c6.setTable([{ h: D.DIM[dim].short }].concat(hx.map(function (h) { return { h: h, num: 1 }; })), hs.map(function (o, yi) { return [o.title].concat(Array.prototype.slice.call(cellv[yi])); }));
@@ -124,7 +128,7 @@ PAGE_FN.live = function (root) {
 
 /* ---------------- หน้าต่างรายละเอียด (กดจากกราฟ) ---------------- */
 var DRILL = {
-  clinic: function (code) { var c = D.byCode(code); if (c) DRILL.open('clinic', code, c.code + ' · ' + c.name, [c.type, c.bld + (c.floor ? ' ชั้น ' + c.floor : ''), c.grp].filter(Boolean).join(' · ')); },
+  clinic: function (code) { var c = D.byCode(code); if (c) DRILL.open('clinic', code, c.code + ' · ' + c.name, [c.unit ? D.shortLabel('unit', c.unit) : 'ยังไม่จัดกลุ่ม', c.zone, c.type, c.bld + (c.floor ? ' ชั้น ' + c.floor : '')].filter(Boolean).join(' · ')); },
   dim: function (dim, key) { if (dim === 'clinic') return DRILL.clinic(key); DRILL.open(dim, key, D.label(dim, key), D.DIM[dim].name); },
   /** ภาพรวม 90 วันล่าสุดของสิ่งที่เลือก: แนวโน้ม + ช่วงเวลาตามวันในสัปดาห์ + คลินิกย่อย */
   open: function (dim, key, title, sub) {
@@ -140,14 +144,29 @@ var DRILL = {
       body.querySelector('#dk').innerHTML = kpi({ label: 'รวม 90 วัน', value: R.v, unit: 'ราย' }) + kpi({ label: 'เฉลี่ยวันทำการ', value: wd, unit: 'ราย/วัน' }) + kpi({ label: 'มาตามนัด', value: R.v ? U.share(R.a / R.v, 0) : '–' }) + kpi({ label: 'walk-in', value: R.v ? U.share(R.w / R.v, 0) : '–' });
       var c1 = CH.card(body.querySelector('#d1'), { title: 'ยอดรายวัน', h: 220, tools: {} });
       c1.set(CH.line(c1.chartEl, { x: U.dates(from, t).map(function (d) { return U.thDate(d, { noYear: true }); }), series: [{ name: 'ยอด', data: ser, area: true }] }));
-      var hx = [], hd = [], mx = 0;
-      for (var s = 20; s < 88; s += 2) hx.push(U.hhmm(s));
-      [1, 2, 3, 4, 5, 6, 0].forEach(function (w, yi) { var n = R.dowN[w] || 1; for (var xi = 0; xi < hx.length; xi++) { var v = (R.dowS[w * NS + 20 + xi * 2] + R.dowS[w * NS + 21 + xi * 2]) / n; hd.push([xi, yi, Math.round(v * 10) / 10]); mx = Math.max(mx, v); } });
-      var c2 = CH.card(body.querySelector('#d2'), { title: 'เฉลี่ยต่อวัน ตามวันและเวลา', h: 250, tools: {} });
+      var st = TR.step(), hx = TR.labels(24, 87, st), hd = [], mx = 0;
+      [1, 2, 3, 4, 5, 6, 0].forEach(function (w, yi) { var n = R.dowN[w] || 1, arr = TR.bin(R.dowS, w * NS, 24, 87, st); arr.forEach(function (v0, xi) { var v = v0 / n; hd.push([xi, yi, Math.round(v * 10) / 10]); mx = Math.max(mx, v); }); });
+      var c2 = CH.card(body.querySelector('#d2'), { title: 'เฉลี่ยต่อวัน ตามวันและเวลา (ช่องละ ' + TR.unit() + ')', h: 250, tools: {} });
       c2.set(CH.heat(c2.chartEl, { x: hx, y: ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'], data: hd, labelW: 70 }));
       var sub2 = D.rollup(R, dim === 'clinic' ? 'ptg' : 'clinic').slice(0, 10);
       var c3 = CH.card(body.querySelector('#d3'), { title: dim === 'clinic' ? 'สิทธิการรักษา' : 'คลินิกย่อย (10 อันดับ)', h: 250, tools: {} });
       c3.set(CH.barsH(c3.chartEl, sub2.map(function (r) { return { label: r.short, title: r.label, v: r.v }; }), { labelW: 160 }));
     });
+  }
+};
+
+/* ---------------- คลินิกที่ HIS ส่งมาแต่ยังไม่จัดกลุ่ม (เฉพาะแอดมินเห็นแถบเตือน) ---------------- */
+var UNMAPPED = {
+  /** คลินิกที่ไม่อยู่ในผังแต่มีผู้ป่วยในข้อมูลที่โหลดไว้ (30 วันล่าสุด) */
+  list: function () {
+    var t = nowBkk().iso, from = U.addDays(t, -30), cnt = {};
+    Object.keys(D.DAYS).forEach(function (d) { if (d < from || d > t) return; var x = D.DAYS[d]; if (!x.cl) return; for (var i = 0; i < x.cl.length; i += 4) { var c = D.C[x.cl[i]]; if (c && !c.mapped) cnt[c.i] = (cnt[c.i] || 0) + x.cl[i + 1]; } });
+    return Object.keys(cnt).map(function (i) { return { c: D.C[i], n: cnt[i] }; }).sort(function (a, b) { return b.n - a.n; });
+  },
+  banner: function () {
+    if (S.me.role !== 'admin') return '';
+    var L = UNMAPPED.list(); if (!L.length) return '';
+    var tot = L.reduce(function (s, x) { return s + x.n; }, 0);
+    return '<div class="flag-bar" role="note"><b class="fi">!</b><div><b>มีคลินิกจาก HIS ที่ยังไม่จัดกลุ่ม ' + L.length + ' คลินิก</b> (' + U.fmt(tot) + ' ราย ใน 30 วันล่าสุด · ไม่นับในยอด OPD)<br><span class="small">' + L.slice(0, 6).map(function (x) { return U.esc(x.c.code) + ' ' + U.esc(x.c.name.replace(/^คลินิก/, '').slice(0, 24)) + ' (' + U.fmt(x.n) + ')'; }).join(' · ') + (L.length > 6 ? ' …' : '') + '</span></div><a class="btn sm" href="#/admin" onclick="STORE.set(\'u:\' + S.me.emp + \':adTab\', \'clinics\'); STORE.set(\'u:\' + S.me.emp + \':cShow\', \'new\')">จัดกลุ่ม</a></div>';
   }
 };
